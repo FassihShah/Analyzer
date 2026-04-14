@@ -6,13 +6,17 @@ This system helps recruiters review applicants consistently without manually rea
 
 The updated flow is:
 
-Job profile -> CSV import -> applicant deduplication -> resume download and parsing -> structured candidate profile -> batched multi-pass analysis -> final score and decision -> recruiter review -> optional analysis for more job titles -> export.
+AI-assisted job profile -> CSV import -> applicant deduplication -> resume download and parsing -> structured candidate profile -> batched multi-pass analysis -> final score and decision -> recruiter review -> optional analysis for more job titles -> export.
 
 ## How The System Works
 
 ### 1. Create A Job Profile
 
 The recruiter first creates the job profile. This tells the system what kind of candidate it should look for.
+
+Creating a job profile is made simple with AI help. The recruiter can paste a full job description, responsibilities, requirements, and hiring notes. The system then drafts an editable job profile from that text.
+
+The recruiter can review the AI-filled profile, adjust anything that does not match the real hiring need, and then save it. This means the recruiter does not need to manually fill every structured field from scratch.
 
 The job profile includes things like:
 
@@ -28,6 +32,8 @@ The job profile includes things like:
 
 The job profile is important because the same candidate can be strong for one role and weak for another. The system now keeps track of which job title each analysis belongs to.
 
+The recruiter can also edit or delete job profiles later. If a job profile changes, selected applicants can be re-run so their analysis reflects the updated role expectations.
+
 ### 2. Upload The Applicant CSV
 
 The recruiter uploads a CSV and selects the first job profile to analyze against.
@@ -35,6 +41,8 @@ The recruiter uploads a CSV and selects the first job profile to analyze against
 The system stores the import batch, keeps the original CSV data, and creates or updates applicants from the CSV rows.
 
 If the same applicant already exists with the same `application_id`, the system reuses that applicant instead of creating a duplicate. This prevents candidate duplication when the same CSV is imported again or when the same candidate needs to be analyzed for another job later.
+
+The import history screen keeps previous CSV batches visible. The recruiter can open a batch again, check its progress, analyze the same batch for another job, or delete the whole import batch and its related applicant analysis data when needed.
 
 ### 3. Queue The Analysis Batch
 
@@ -52,6 +60,8 @@ The import progress screen shows:
 - the job title used for the analysis
 
 The recruiter can now pause and resume an analysis batch. Pause does not kill a candidate that is already inside an AI call, but it stops the remaining queued applicants from continuing. When the batch is resumed, the queued applicants continue from where the batch stopped.
+
+The progress view also supports analyzing the same import for another job title later. This is useful when one candidate pool should be evaluated against multiple roles without uploading the CSV again.
 
 ### 4. Resume Download And Parsing
 
@@ -151,6 +161,8 @@ The system stores job-specific analysis separately, so one applicant can have sc
 
 This avoids duplicate candidates and makes the system better for agencies or teams hiring for multiple roles at once.
 
+The applicant detail page shows the candidate profile, resume parsing status, dimension-wise evaluations, final result, and job-specific analysis history. This helps the recruiter understand not only the final score, but also why the system reached that decision.
+
 ### 9. Review And Filter Applicants
 
 The Applicants screen is used for recruiter review.
@@ -171,6 +183,8 @@ Processing status can be:
 - missing resume
 
 The screen also shows how many applicants are currently filtered and how many are selected. This matters because the recruiter can select candidates in a filtered view and then re-run analysis, delete, or analyze those selected applicants for another job title.
+
+The dashboard gives a quick overview of total imported applicants, shortlisted candidates, review candidates, rejected candidates, failed analyses, recent jobs, and recent applicants. The analytics screen gives a lightweight scoring overview, including average final score, scored candidates, and total imported candidates.
 
 ### 10. Recovery If Backend Or Worker Stops
 
@@ -194,6 +208,35 @@ The export preserves the original applicant data and adds AI-generated fields su
 - interview recommendation
 - interview focus areas
 
+This makes the output usable outside the app while keeping the original CSV fields intact.
+
+## Main Features
+
+- AI-assisted job profile creation from pasted job descriptions.
+- Editable job profiles after AI fills the first draft.
+- CSV import for applicant data and resume links.
+- Import history with progress tracking.
+- Deduplication using `application_id`.
+- Google Drive resume link handling.
+- PDF and DOCX resume text extraction.
+- Missing resume and failed analysis status handling.
+- Structured candidate profile generation.
+- Fallback extraction when the AI profile comes back empty.
+- Batched multi-pass analysis to reduce AI calls while keeping separate scoring dimensions.
+- Weighted final score and shortlist, review, or reject decision.
+- Pause and resume for analysis batches.
+- Recovery for interrupted analysis after backend or worker restart.
+- Analyze the same import or selected applicants for additional job titles.
+- Store and display job-specific analysis results for the same candidate.
+- Filter applicants by decision, job title, status, and search text.
+- Show selected applicant count while filtering.
+- Re-run selected applicants.
+- Delete selected applicants or complete import batches.
+- Applicant detail page with resume parsing, structured profile, dimension results, and job analysis history.
+- Dashboard for high-level applicant and job overview.
+- Analytics page for scoring coverage and candidate volume.
+- Enriched CSV export with original data plus AI results.
+
 ## Why Multiple Passes Matter
 
 The multi-pass approach makes the evaluation more reliable than simple keyword matching.
@@ -205,6 +248,7 @@ This gives recruiters a clearer reason for every score and decision.
 ## Current Practical Behavior
 
 - Importing a CSV starts analysis for the selected job.
+- Job profiles can be created faster by pasting a job description and letting AI draft the structured profile.
 - Duplicate applicants are avoided using `application_id`.
 - Resume text is parsed before scoring.
 - Empty AI profiles are retried or handled with fallback extraction.
@@ -212,5 +256,7 @@ This gives recruiters a clearer reason for every score and decision.
 - The same import can be analyzed later for more job titles.
 - Applicant detail pages can show scores for different job titles.
 - Applicants can be filtered by job title, status, decision, and search text.
+- Selected applicant counts are visible while filtering.
 - Analysis batches can be paused and resumed.
 - Interrupted analysis can continue from unfinished applicants after restart.
+- Results can be exported as an enriched CSV.
