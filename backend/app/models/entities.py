@@ -35,6 +35,12 @@ class Decision(str, Enum):
     reject = "reject"
 
 
+class CandidateEmailStatus(str, Enum):
+    draft = "draft"
+    sent = "sent"
+    failed = "failed"
+
+
 class User(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(index=True, unique=True)
@@ -210,6 +216,24 @@ class FinalEvaluation(SQLModel, table=True):
     missing_information: list[str] = Field(default_factory=list, sa_column=Column(JSONB))
     synthesis_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB))
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class CandidateEmail(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    applicant_id: UUID = Field(foreign_key="applicant.id", index=True)
+    job_id: UUID = Field(foreign_key="jobprofile.id", index=True)
+    run_id: UUID = Field(foreign_key="evaluationrun.id", index=True)
+    final_evaluation_id: UUID = Field(foreign_key="finalevaluation.id", index=True)
+    to_email: str = Field(index=True)
+    from_email: str
+    subject: str
+    body: str
+    status: CandidateEmailStatus = Field(default=CandidateEmailStatus.draft, index=True)
+    failure_reason: str | None = None
+    sent_at: datetime | None = None
+    created_by: UUID | None = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class AuditLog(SQLModel, table=True):

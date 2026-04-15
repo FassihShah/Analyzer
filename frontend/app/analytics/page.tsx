@@ -33,12 +33,12 @@ export default function AnalyticsPage() {
           ["Scored candidates", averages.scored],
           ["Imported candidates", applicants.length]
         ].map(([label, value]) => (
-          <Card className="min-h-32" key={label}>
+          <Card className="min-h-32 transition hover:-translate-y-0.5 hover:border-[#b9ddd5]" key={label}>
             <div className="flex items-start justify-between">
-              <p className="text-sm text-[#65706a]">{label}</p>
+              <p className="text-sm font-semibold text-[#5f6f6b]">{label}</p>
               <BarChart3 className="text-moss" size={20} />
             </div>
-            <p className="mt-5 text-3xl font-bold">{value}</p>
+            <p className="mt-5 text-3xl font-black">{value}</p>
           </Card>
         ))}
       </section>

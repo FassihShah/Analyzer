@@ -42,14 +42,14 @@ export default function ExportsPage() {
         title="Exports"
         description="Download clean enriched CSV files with only the operational AI columns added."
       />
-      <Card>
+      <Card className="max-w-4xl">
         <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5f3ed] text-moss">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#b9ddd5] bg-[#e9f8f4] text-moss shadow-[0_12px_28px_rgba(20,122,108,0.14)]">
             <FileDown size={20} />
           </div>
           <div>
-            <h2 className="font-bold">Choose export</h2>
-            <p className="text-sm text-[#65706a]">Export all applicants or only one decision group.</p>
+            <h2 className="font-black">Choose export</h2>
+            <p className="text-sm text-[#5f6f6b]">Export all applicants or only one decision group.</p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -70,7 +70,7 @@ export default function ExportsPage() {
           </label>
         </div>
         <Button className="mt-5" onClick={download}>Download CSV</Button>
-        <p className="mt-4 text-sm text-[#65706a]">The export preserves original applicant columns and adds only the ten recruiter-facing AI output fields.</p>
+        <p className="mt-4 text-sm leading-6 text-[#5f6f6b]">The export preserves original applicant columns and adds only the ten recruiter-facing AI output fields.</p>
       </Card>
     </div>
   );

@@ -7,7 +7,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "focus-ring min-h-10 w-full rounded-md border border-line bg-white px-3 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] placeholder:text-[#8c958f]",
+        "focus-ring min-h-10 w-full rounded-md border border-line bg-white/95 px-3 py-2 text-sm text-ink shadow-[0_1px_0_rgba(255,255,255,0.8)] transition placeholder:text-[#7a8a86] hover:border-[#b4c9c4]",
         props.className
       )}
     />
@@ -18,7 +18,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return (
     <textarea
       {...props}
-      className={cn("focus-ring w-full rounded-md border border-line bg-white px-3 py-2 text-sm placeholder:text-[#8c958f]", props.className)}
+      className={cn("focus-ring w-full rounded-md border border-line bg-white/95 px-3 py-2 text-sm text-ink shadow-[0_1px_0_rgba(255,255,255,0.8)] transition placeholder:text-[#7a8a86] hover:border-[#b4c9c4]", props.className)}
     />
   );
 }

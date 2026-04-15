@@ -37,6 +37,21 @@ DEEPSEEK_API_KEY=...
 SECRET_KEY=...
 ```
 
+For rejection email sending, also set SMTP values for the recruiter mailbox:
+
+```bash
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USERNAME=hr@yourdomain.com
+SMTP_PASSWORD=...
+SMTP_USE_SSL=true
+SMTP_USE_STARTTLS=false
+RECRUITER_FROM_EMAIL=hr@yourdomain.com
+RECRUITER_FROM_NAME=HR Team
+```
+
+Use the real mailbox address and password or app password from your email provider. The app drafts emails before sending, and only candidates with a completed `reject` decision for the selected job are eligible.
+
 ## Run With Docker
 
 ```bash

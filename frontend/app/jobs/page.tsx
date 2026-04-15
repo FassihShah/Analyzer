@@ -263,12 +263,12 @@ export default function JobsPage() {
 
       <Card>
         <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5f3ed] text-moss">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#b9ddd5] bg-[#e9f8f4] text-moss shadow-[0_12px_28px_rgba(20,122,108,0.14)]">
             <Sparkles size={20} />
           </div>
           <div>
-            <h2 className="font-bold">AI fill from job description</h2>
-            <p className="text-sm text-[#65706a]">Paste everything you have. The generated profile remains editable.</p>
+            <h2 className="font-black">AI fill from job description</h2>
+            <p className="text-sm text-[#5f6f6b]">Paste everything you have. The generated profile remains editable.</p>
           </div>
         </div>
         <Textarea
@@ -278,19 +278,19 @@ export default function JobsPage() {
           onChange={(event) => setSourceText(event.target.value)}
         />
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-[#65706a]">Tip: include what matters most, such as self-projects, skills, and whether experience is required.</p>
+          <p className="text-sm text-[#5f6f6b]">Tip: include what matters most, such as self-projects, skills, and whether experience is required.</p>
           <Button onClick={generateDraft} disabled={isGenerating}>{isGenerating ? "Generating..." : "Generate editable profile"}</Button>
         </div>
       </Card>
 
       <Card>
         <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5f3ed] text-moss">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#b9ddd5] bg-[#e9f8f4] text-moss shadow-[0_12px_28px_rgba(20,122,108,0.14)]">
             <BriefcaseBusiness size={20} />
           </div>
           <div>
-            <h2 className="font-bold">{editingJobId ? "Edit job profile" : "Review job profile"}</h2>
-            <p className="text-sm text-[#65706a]">Only title is required. Add details where useful.</p>
+            <h2 className="font-black">{editingJobId ? "Edit job profile" : "Review job profile"}</h2>
+            <p className="text-sm text-[#5f6f6b]">Only title is required. Add details where useful.</p>
           </div>
         </div>
 
@@ -320,7 +320,7 @@ export default function JobsPage() {
           <Textarea className="min-h-32" placeholder="Preferred project types" value={draft.preferred_projects} onChange={(event) => setField("preferred_projects", event.target.value)} />
         </div>
 
-        <details className="mt-5 rounded-lg border border-line bg-paper p-4">
+        <details className="mt-5 rounded-lg border border-line bg-paper/80 p-4">
           <summary className="cursor-pointer text-sm font-semibold text-moss">More details</summary>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <Textarea className="min-h-36" placeholder="Full job description" value={draft.description} onChange={(event) => setField("description", event.target.value)} />
@@ -346,11 +346,11 @@ export default function JobsPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         {jobs.map((job) => (
-          <Card className="transition hover:border-moss" key={job.id}>
+          <Card className="transition hover:-translate-y-0.5 hover:border-[#b9ddd5]" key={job.id}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-lg font-bold">{job.title}</p>
-                <p className="mt-1 text-sm text-[#65706a]">{job.department} | {job.role_level} | {job.status}</p>
+                <p className="text-lg font-black">{job.title}</p>
+                <p className="mt-1 text-sm text-[#5f6f6b]">{job.department} | {job.role_level} | {job.status}</p>
               </div>
               <div className="flex gap-2">
                 <button className="focus-ring rounded-lg border border-line p-2 text-moss hover:bg-paper" onClick={() => loadJobForEdit(job)} title="Edit job">

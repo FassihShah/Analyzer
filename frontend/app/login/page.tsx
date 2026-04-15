@@ -36,21 +36,27 @@ function LoginForm() {
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-1 bg-paper lg:grid-cols-[1fr_520px]">
-      <section className="hidden min-h-screen lg:block">
+    <main className="grid min-h-screen grid-cols-1 bg-paper lg:grid-cols-[1fr_500px]">
+      <section className="relative hidden min-h-screen overflow-hidden lg:block">
         <Image
-          src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1400&q=80"
-          alt="Review desk"
+          src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80"
+          alt="Recruiting workspace"
           width={1400}
           height={1200}
           className="h-full w-full object-cover"
         />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(24,28,31,0.36),rgba(24,28,31,0.06))]" />
+        <div className="absolute bottom-8 left-8 max-w-xl rounded-lg border border-white/25 bg-white/18 p-6 text-white shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur">
+          <p className="text-sm font-bold uppercase tracking-normal">DYOS AI Hiring</p>
+          <h1 className="mt-3 text-4xl font-black tracking-normal">Evidence first. Faster review.</h1>
+          <p className="mt-3 text-sm leading-6 text-white/86">Score candidates by job-specific proof, keep drafts under review, and move cleanly from screening to communication.</p>
+        </div>
       </section>
       <section className="flex items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <p className="text-sm font-semibold text-coral">Internal recruiter access</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-normal text-ink">Sign in</h1>
-          <p className="mt-2 text-sm text-[#65706a]">Review candidates with structured multi-pass AI evaluation.</p>
+        <Card className="w-full max-w-md border-[#cbdad6] bg-white/92 p-7">
+          <p className="text-xs font-black uppercase tracking-normal text-moss">Internal recruiter access</p>
+          <h1 className="mt-2 text-3xl font-black tracking-normal text-ink">Sign in</h1>
+          <p className="mt-2 text-sm leading-6 text-[#63736f]">Review candidates with structured multi-pass AI evaluation.</p>
           <form onSubmit={submit} className="mt-6 space-y-4">
             <label className="block text-sm font-medium">
               Email
@@ -60,7 +66,7 @@ function LoginForm() {
               Password
               <Input className="mt-1" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
             </label>
-            {error && <p className="text-sm text-coral">{error}</p>}
+            {error && <p className="rounded-lg border border-[#f1b2a4] bg-[#fff0ed] px-4 py-3 text-sm text-[#9c3726]">{error}</p>}
             <Button className="w-full" type="submit">Continue</Button>
           </form>
         </Card>
@@ -71,7 +77,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-paper text-sm text-[#65706a]">Loading sign in...</main>}>
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-paper text-sm text-[#63736f]">Loading sign in...</main>}>
       <LoginForm />
     </Suspense>
   );

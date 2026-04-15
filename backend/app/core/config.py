@@ -18,6 +18,18 @@ class Settings(BaseSettings):
     default_deepseek_model: str = "deepseek-chat"
     resume_download_timeout_seconds: int = 30
     max_resume_chars_for_llm: int = 60000
+    smtp_host: str | None = None
+    smtp_port: int = 465
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_ssl: bool = True
+    smtp_use_starttls: bool = False
+    recruiter_from_email: str | None = None
+    recruiter_from_name: str = "HR Team"
+    imap_host: str | None = None
+    imap_port: int = 993
+    save_sent_email_copy: bool = True
+    sent_mailbox_name: str = "Sent"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -29,4 +41,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

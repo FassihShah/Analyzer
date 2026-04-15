@@ -15,6 +15,8 @@ It can:
 - Continue unfinished analysis after restart.
 - Analyze the same candidates for more job titles later.
 - Filter, review, re-run, delete, and export applicants.
+- Draft AI-personalized rejection emails from job-specific weaknesses.
+- Review, edit, send, and track rejection emails by applicant and role.
 
 ## High-Level Flow
 
@@ -28,7 +30,10 @@ It can:
 8. Create final score and decision.
 9. Review and filter applicants.
 10. Analyze the same applicants for more job titles if needed.
-11. Export enriched results.
+11. Draft AI-personalized rejection emails for rejected candidates.
+12. Review, edit, and send approved emails.
+13. Track sent, failed, and drafted emails by applicant and role.
+14. Export enriched results.
 
 ## 1. Job Profile Creation
 
@@ -282,6 +287,7 @@ Selected applicants can be:
 - re-run
 - deleted
 - analyzed for another job title
+- drafted for rejection emails when they have a completed `reject` decision for the selected job
 
 ## 10. Applicant Detail Page
 
@@ -296,8 +302,22 @@ It can show:
 - final evaluation
 - scores for each job title
 - decisions for each job title
+- rejection email history for this applicant
 
 This helps the recruiter understand why the system gave a score.
+
+The rejection email history shows:
+
+- job title or role
+- email status: `draft`, `sent`, or `failed`
+- recipient email
+- sent timestamp
+- last updated timestamp
+- subject
+- full drafted email body
+- delivery or Sent-folder warning if one exists
+
+This keeps the candidate communication trail visible from the applicant's own record, not only from the Emails page.
 
 ## 11. Dashboard And Analytics
 
@@ -308,6 +328,7 @@ The Dashboard gives a quick overview:
 - manual review candidates
 - rejected candidates
 - failed analyses
+- email drafts waiting for review
 - recent jobs
 - recent applicants
 
@@ -344,6 +365,96 @@ Export fields can include:
 - gaps
 - interview recommendation
 - interview focus areas
+
+## 14. Rejection Email Drafting, Sending, And Tracking
+
+The recruiter can create AI-personalized rejection emails after analysis is complete.
+
+Eligibility rules:
+
+- The applicant must have an email address.
+- The recruiter must choose a specific job title.
+- The applicant must already have a completed analysis for that job title.
+- The completed decision for that job must be `reject`.
+- The draft must be reviewed before sending.
+
+This prevents sending rejection emails for:
+
+- candidates who were not analyzed yet
+- candidates analyzed for a different job only
+- shortlisted or review candidates
+- applicants with missing email addresses
+
+Recommended flow:
+
+1. Filter Applicants by job title and `reject`.
+2. Select one or more candidates.
+3. Create AI-personalized rejection email drafts.
+4. Open the Emails page.
+5. Review and edit each draft if needed.
+6. Send a single approved draft or send selected approved drafts in bulk.
+7. Check status from the Emails page or the applicant detail page.
+
+AI draft generation uses:
+
+- candidate name
+- selected job title
+- final evaluation summary
+- top candidate gaps
+- lowest-scoring analysis dimensions
+- missing information identified during evaluation
+- candidate strengths where appropriate
+- job requirements and success definition
+
+The email draft should include:
+
+- a clear but respectful rejection decision
+- two or three constructive improvement areas
+- humble, professional, and engaging wording
+- one brief positive note when supported by evidence
+- a polite closing from the recruiter
+
+The email draft must not include:
+
+- AI, algorithm, score, or rubric wording
+- harsh language
+- legal-risk wording
+- unsupported claims
+- promises about future opportunities
+
+The system stores each email before sending.
+
+Email statuses:
+
+- `draft`: generated but not sent yet
+- `sent`: delivered through SMTP
+- `failed`: send attempt failed
+
+Tracking surfaces:
+
+- The Emails page shows all rejection emails across applicants.
+- The Emails page tracks applicant, role, status, sent time, failure reason, and actions.
+- The applicant detail page shows that applicant's full rejection email history and full draft body.
+
+Delivery behavior:
+
+- Emails are sent through the configured Hostinger SMTP mailbox.
+- After SMTP delivery, the system tries to save a copy into the Hostinger Sent folder using IMAP.
+- If SMTP succeeds but the Sent-folder copy fails, the email remains `sent`, and the warning is stored on the email record.
+- Emails sent before Sent-folder copy support was added will not appear retroactively in Hostinger Sent.
+
+Required email configuration:
+
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USERNAME`
+- `SMTP_PASSWORD`
+- `RECRUITER_FROM_EMAIL`
+- `RECRUITER_FROM_NAME`
+- `IMAP_HOST`
+- `IMAP_PORT`
+- `SAVE_SENT_EMAIL_COPY`
+- `SENT_MAILBOX_NAME`
 
 ## Why Multi-Pass Analysis Matters
 
@@ -383,6 +494,11 @@ That gives recruiters clearer reasoning behind each score and decision.
 - Delete selected applicants.
 - Delete complete import batches.
 - Applicant detail review.
+- AI-personalized rejection email drafting for completed rejected job analyses.
+- Single and bulk rejection email sending after draft review.
+- Rejection email tracking by applicant, role, status, and sent timestamp.
+- Applicant-level rejection email history with full drafted email body.
+- Hostinger SMTP sending with optional IMAP Sent-folder copy.
 - Dashboard overview.
 - Analytics overview.
 - Enriched CSV export.

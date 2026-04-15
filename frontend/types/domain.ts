@@ -87,6 +87,25 @@ export type JobAnalysis = {
   reason?: string | null;
 };
 
+export type CandidateEmail = {
+  id: string;
+  applicant_id: string;
+  job_id: string;
+  run_id: string;
+  final_evaluation_id: string;
+  to_email: string;
+  from_email: string;
+  subject: string;
+  body: string;
+  status: "draft" | "sent" | "failed";
+  failure_reason?: string | null;
+  sent_at?: string | null;
+  candidate_name?: string;
+  job_title?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type PromptTemplate = {
   id: string;
   key: string;

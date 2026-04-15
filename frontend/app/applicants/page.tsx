@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Trash2 } from "lucide-react";
+import { Mail, Search, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -17,6 +17,7 @@ export default function ApplicantsPage() {
   const [jobs, setJobs] = useState<JobProfile[]>([]);
   const [jobId, setJobId] = useState("");
   const [analysisJobId, setAnalysisJobId] = useState("");
+  const [emailJobId, setEmailJobId] = useState("");
   const [decision, setDecision] = useState("");
   const [status, setStatus] = useState("");
   const [query, setQuery] = useState("");
@@ -36,6 +37,7 @@ export default function ApplicantsPage() {
     apiFetch<JobProfile[]>("/jobs").then((data) => {
       setJobs(data);
       setAnalysisJobId(data[0]?.id ?? "");
+      setEmailJobId(data[0]?.id ?? "");
     }).catch(() => setJobs([]));
   }, []);
 
@@ -100,6 +102,24 @@ export default function ApplicantsPage() {
     }
   }
 
+  async function draftSelectedRejections() {
+    if (!selectedIds.length || !emailJobId) return;
+    setError("");
+    setMessage("");
+    try {
+      const result = await apiFetch<{ drafted: Array<{ id: string }>; skipped: Array<{ reason: string }> }>("/candidate-emails/draft-rejections", {
+        method: "POST",
+        body: JSON.stringify({ applicant_ids: selectedIds, job_id: emailJobId, overwrite_existing_drafts: true })
+      });
+      const skipped = result.skipped.length ? ` ${result.skipped.length} skipped because they were not eligible.` : "";
+      setMessage(`${result.drafted.length} rejection email drafts ready for review.${skipped}`);
+      setSelectedIds([]);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not draft rejection emails.");
+    }
+  }
+
   async function deleteApplicant(applicant: Applicant) {
     const name = applicant.candidate_name || "this applicant";
     const ok = window.confirm(`Delete ${name} and all related analysis data?`);
@@ -156,27 +176,27 @@ export default function ApplicantsPage() {
         </div>
       )}
       <Card className="overflow-hidden p-0">
-        <div className="grid gap-5 border-b border-line bg-paper/70 p-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-5 border-b border-line bg-paper/80 p-5 sm:grid-cols-2 xl:grid-cols-4">
           <div>
-            <p className="text-xs uppercase tracking-normal text-[#65706a]">Filtered applicants</p>
-            <p className="mt-1 text-2xl font-bold text-moss">{filtered.length}</p>
+            <p className="text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">Filtered applicants</p>
+            <p className="mt-1 text-2xl font-black text-moss">{filtered.length}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-normal text-[#65706a]">Selected</p>
-            <p className="mt-1 text-2xl font-bold text-moss">{selectedVisibleCount}<span className="text-sm font-medium text-[#65706a]"> / {selectedIds.length} total</span></p>
+            <p className="text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">Selected</p>
+            <p className="mt-1 text-2xl font-black text-moss">{selectedVisibleCount}<span className="text-sm font-medium text-[#5f6f6b]"> / {selectedIds.length} total</span></p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-normal text-[#65706a]">Completed</p>
-            <p className="mt-1 text-2xl font-bold text-moss">{filteredStatusCounts.completed ?? 0}</p>
+            <p className="text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">Completed</p>
+            <p className="mt-1 text-2xl font-black text-moss">{filteredStatusCounts.completed ?? 0}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-normal text-[#65706a]">Failed / missing</p>
-            <p className="mt-1 text-2xl font-bold text-coral">{(filteredStatusCounts.failed ?? 0) + (filteredStatusCounts.missing_resume ?? 0)}</p>
+            <p className="text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">Failed / missing</p>
+            <p className="mt-1 text-2xl font-black text-coral">{(filteredStatusCounts.failed ?? 0) + (filteredStatusCounts.missing_resume ?? 0)}</p>
           </div>
         </div>
         <div className="grid gap-3 border-b border-line p-5 xl:grid-cols-[1fr_180px_180px_180px_auto]">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8c958f]" size={18} />
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7a8a86]" size={18} />
             <Input className="pl-10" placeholder="Filter by name, email, skill, or strength" value={query} onChange={(event) => setQuery(event.target.value)} />
           </div>
           <select className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={decision} onChange={(event) => setDecision(event.target.value)}>
@@ -202,8 +222,8 @@ export default function ApplicantsPage() {
             <Button className="min-h-10 bg-coral px-3 hover:bg-[#a84436]" onClick={deleteSelected} disabled={!selectedIds.length}>Delete ({selectedIds.length})</Button>
           </div>
         </div>
-        <div className="flex flex-col gap-3 border-b border-line bg-paper/40 p-5 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-[#65706a]">
+        <div className="flex flex-col gap-3 border-b border-line bg-paper/50 p-5 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm font-medium text-[#5f6f6b]">
             {selectedVisibleCount} selected in current filter, {selectedIds.length} selected overall.
           </p>
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -213,10 +233,25 @@ export default function ApplicantsPage() {
             <Button className="min-h-10 bg-[#4d5752] px-3" onClick={analyzeSelectedForJob} disabled={!selectedIds.length || !analysisJobId}>Analyze selected ({selectedIds.length}) for job</Button>
           </div>
         </div>
+        <div className="flex flex-col gap-3 border-b border-line p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-black text-ink">Rejection email drafts</p>
+            <p className="mt-1 text-sm text-[#5f6f6b]">Draft only for selected candidates who already have a completed reject decision for the chosen job.</p>
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <select className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={emailJobId} onChange={(event) => setEmailJobId(event.target.value)}>
+              {jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
+            </select>
+            <Button className="min-h-10 bg-moss px-3" onClick={draftSelectedRejections} disabled={!selectedIds.length || !emailJobId}>
+              <Mail size={16} />
+              Draft rejections ({selectedIds.length})
+            </Button>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="bg-paper">
-              <tr className="border-b border-line text-xs uppercase tracking-normal text-[#65706a]">
+              <tr className="border-b border-line text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">
                 <th className="px-5 py-3">
                   <input type="checkbox" checked={filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id))} onChange={toggleAllFiltered} />
                 </th>
@@ -241,17 +276,17 @@ export default function ApplicantsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <Link className="font-semibold text-moss" href={`/applicants/${applicant.id}`}>{applicant.candidate_name ?? "Unnamed"}</Link>
-                      <p className="mt-1 text-xs text-[#65706a]">{applicant.candidate_email}</p>
+                      <p className="mt-1 text-xs text-[#5f6f6b]">{applicant.candidate_email}</p>
                     </td>
                     <td className="px-4 py-4">{applicant.applied_role}</td>
                     <td className="px-4 py-4">
                       <p className="font-bold">{analysis?.final_score ?? output.final_candidate_score ?? "-"}</p>
-                      <p className="mt-1 text-xs text-[#65706a]">{analysis?.job_title ?? applicant.job_title}</p>
+                      <p className="mt-1 text-xs text-[#5f6f6b]">{analysis?.job_title ?? applicant.job_title}</p>
                     </td>
                     <td className="px-4 py-4"><StatusBadge value={analysis?.decision ?? output.final_candidate_decision} /></td>
                     <td className="px-4 py-4"><StatusBadge value={applicant.processing_status} /></td>
-                    <td className="max-w-56 px-4 py-4 text-[#4d5752]">{output.best_project_relevance ?? "-"}</td>
-                    <td className="max-w-72 px-4 py-4 text-[#4d5752]">{Array.isArray(output.top_strengths) ? output.top_strengths.join("; ") : output.top_strengths}</td>
+                    <td className="max-w-56 px-4 py-4 text-[#4f5f5b]">{output.best_project_relevance ?? "-"}</td>
+                    <td className="max-w-72 px-4 py-4 text-[#4f5f5b]">{Array.isArray(output.top_strengths) ? output.top_strengths.join("; ") : output.top_strengths}</td>
                     <td className="px-5 py-4">
                       <div className="flex gap-2">
                         <Button className="min-h-8 px-3 py-1 text-xs" onClick={() => reprocess(applicant.id)}>Re-run</Button>

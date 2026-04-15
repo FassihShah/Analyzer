@@ -184,12 +184,12 @@ export default function ImportsPage() {
       />
       <Card>
         <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5f3ed] text-moss">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#b9ddd5] bg-[#e9f8f4] text-moss shadow-[0_12px_28px_rgba(20,122,108,0.14)]">
             <Upload size={20} />
           </div>
           <div>
-            <h2 className="font-bold">Upload applicants</h2>
-            <p className="text-sm text-[#65706a]">Original CSV fields are preserved for export.</p>
+            <h2 className="font-black">Upload applicants</h2>
+            <p className="text-sm text-[#5f6f6b]">Original CSV fields are preserved for export.</p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -208,14 +208,14 @@ export default function ImportsPage() {
         {message && <p className="mt-4 text-sm text-moss">{message}</p>}
         {error && <p className="mt-4 rounded-lg border border-[#efc6bd] bg-[#fff1ee] px-4 py-3 text-sm text-[#8a352b]">{error}</p>}
         {progress && (
-          <div className="mt-6 rounded-lg border border-line bg-paper p-5">
+          <div className="mt-6 rounded-lg border border-line bg-paper/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold">Analysis progress</p>
+                <p className="font-black">Analysis progress</p>
                   {progress.status === "paused" && <span className="rounded-full border border-[#e1c46d] bg-[#fff7dc] px-2 py-1 text-xs font-semibold text-[#715c13]">Paused</span>}
                 </div>
-                <p className="mt-1 text-sm text-[#65706a]">{progress.done} of {progress.total} finished{progress.job_title ? ` | ${progress.job_title}` : ""}</p>
+                <p className="mt-1 text-sm text-[#5f6f6b]">{progress.done} of {progress.total} finished{progress.job_title ? ` | ${progress.job_title}` : ""}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="mr-2 text-2xl font-bold text-moss">{progress.percent}%</p>
@@ -245,8 +245,8 @@ export default function ImportsPage() {
             <div className="mt-4 grid gap-2 text-sm sm:grid-cols-5">
               {["queued", "running", "completed", "failed", "missing_resume"].map((status) => (
                 <div className="rounded-lg border border-line bg-white px-3 py-2" key={status}>
-                  <p className="text-xs uppercase tracking-normal text-[#65706a]">{status.replace("_", " ")}</p>
-                  <p className="mt-1 text-lg font-bold">{progress.counts[status] ?? 0}</p>
+                  <p className="text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">{status.replace("_", " ")}</p>
+                  <p className="mt-1 text-lg font-black">{progress.counts[status] ?? 0}</p>
                 </div>
               ))}
             </div>
@@ -264,20 +264,20 @@ export default function ImportsPage() {
       <Card>
         <div className="mb-5 flex items-center justify-between gap-4 border-b border-line pb-4">
           <div>
-            <h2 className="font-bold">Import history</h2>
-            <p className="text-sm text-[#65706a]">Delete a CSV batch and all applicants created from it.</p>
+            <h2 className="font-black">Import history</h2>
+            <p className="text-sm text-[#5f6f6b]">Delete a CSV batch and all applicants created from it.</p>
           </div>
           <Button className="bg-[#4d5752] hover:bg-[#3c4541]" onClick={loadImports}>Refresh</Button>
         </div>
         <div className="space-y-3">
           {imports.map((item) => (
-            <div className="flex flex-col justify-between gap-3 rounded-lg border border-line bg-paper/60 p-4 md:flex-row md:items-center" key={item.id}>
+            <div className="flex flex-col justify-between gap-3 rounded-lg border border-line bg-paper/70 p-4 transition hover:border-[#b9ddd5] hover:bg-white md:flex-row md:items-center" key={item.id}>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold">{item.file_name}</p>
+                  <p className="font-bold">{item.file_name}</p>
                   {item.status === "paused" && <span className="rounded-full border border-[#e1c46d] bg-[#fff7dc] px-2 py-1 text-xs font-semibold text-[#715c13]">Paused</span>}
                 </div>
-                <p className="mt-1 text-sm text-[#65706a]">
+                <p className="mt-1 text-sm text-[#5f6f6b]">
                   {item.job_title ? `${item.job_title} | ` : ""}{item.applicant_count} applicants | completed {item.counts.completed ?? 0} | failed {item.counts.failed ?? 0} | queued {item.counts.queued ?? 0}
                 </p>
               </div>
@@ -287,7 +287,7 @@ export default function ImportsPage() {
               </div>
             </div>
           ))}
-          {!imports.length && <p className="text-sm text-[#65706a]">No CSV imports yet.</p>}
+          {!imports.length && <p className="text-sm text-[#5f6f6b]">No CSV imports yet.</p>}
         </div>
       </Card>
     </div>
