@@ -126,6 +126,8 @@ CSV import is not locked to one vendor format. The importer keeps the original s
 
 If a CSV has no applied-role column, the selected job for that import is stored as the applicant's applied role. This supports single-role imports while keeping later role-specific analysis and rejection-email safeguards intact.
 
+Duplicate prevention uses `application_id` first. When no application ID exists, the importer reuses the same applicant by candidate email within the selected job, with email plus applied role as a secondary fallback.
+
 Direct download resume links are supported when they return PDF or DOCX bytes, even if the link does not include a clean filename.
 
 The exported CSV preserves applicant input fields, including source-specific columns, and adds these system-generated columns:

@@ -125,7 +125,9 @@ Each imported row stores:
 Deduplication:
 
 - If a row has an `application_id` that already exists, the system reuses that applicant.
-- If no `application_id` exists, the system can reuse an applicant with the same candidate email and applied role.
+- If no `application_id` exists, the system reuses an applicant with the same candidate email for the same selected job.
+- If the selected job differs, the same email can still be kept as a separate role/application record.
+- If a job-specific email match is not found, the system can still reuse an applicant with the same candidate email and applied role.
 - This prevents duplicate candidates when the same file is uploaded again.
 - It also helps when the same candidate pool is analyzed for another job later.
 
