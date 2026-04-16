@@ -9,11 +9,11 @@ This repository contains a production-oriented scaffold for an internal recruite
 - Async processing: Celery with Redis.
 - Resume parsing: PyMuPDF first, pdfplumber fallback, python-docx for DOCX. OCR is detected as required when text extraction fails.
 - LLM: DeepSeek chat completions with JSON mode, retries, schema validation, coded prompt/rubric defaults, token usage storage, and failure logging.
-- CSV: pandas import/export. The export preserves the existing applicant columns and adds only the requested recruiter-facing output columns.
+- CSV: pandas import/export with flexible input mapping. Different source headers are preserved while common applicant, role, email, and resume fields are normalized for analysis.
 
 ## Multi-Pass Evaluation Flow
 
-1. Fetch and parse the resume from `resume_storage_link`.
+1. Fetch and parse the resume from the normalized resume link field, such as `resume_storage_link`, `Resume Link`, `Resume URL`, `CV Link`, or similar source headers.
 2. Generate a structured candidate profile JSON from the extracted resume.
 3. Run specialized LLM passes using backend-coded detailed prompts and default rubrics:
    - project analysis
@@ -112,9 +112,23 @@ npm install
 npm run dev
 ```
 
-## CSV Output Contract
+## CSV Import And Output
 
-The exported CSV only adds these system-generated columns:
+CSV import is not locked to one vendor format. The importer keeps the original source columns and maps common header variations into canonical fields used by the system:
+
+- Candidate name: `candidate_full_name`, `Name`, `Full Name`, `Applicant Name`, `Sender Name`
+- Candidate email: `candidate_email_from_resume`, `Email`, `Email Address`, `Applicant Email`, `Sender Email`
+- Candidate phone: `Phone`, `Phone Number`, `Mobile`, `Contact Number`
+- Applied role: `final_position_applied`, `Position`, `Job Title`, `Role`, `Opening`
+- Applied date: `Applied Date`, `Application Date`, `Submitted At`, `Date Applied`
+- Resume link: `resume_storage_link`, `Resume Link`, `Resume URL`, `CV Link`, `CV URL`
+- Profile links and extra source columns, such as `LinkedIn` or `Employment Status`, are kept with the applicant record and included in export.
+
+If a CSV has no applied-role column, the selected job for that import is stored as the applicant's applied role. This supports single-role imports while keeping later role-specific analysis and rejection-email safeguards intact.
+
+Direct download resume links are supported when they return PDF or DOCX bytes, even if the link does not include a clean filename.
+
+The exported CSV preserves applicant input fields, including source-specific columns, and adds these system-generated columns:
 
 - `resume_analysis_status`
 - `final_candidate_score`

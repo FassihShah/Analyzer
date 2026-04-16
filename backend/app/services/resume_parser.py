@@ -40,9 +40,10 @@ async def fetch_resume_bytes(link: str) -> tuple[bytes, str | None]:
 def extract_text_from_bytes(content: bytes, file_name: str | None, mime_type: str | None) -> tuple[str, dict[str, Any]]:
     suffix = Path(file_name or "").suffix.lower()
     diagnostics: dict[str, Any] = {"parser": None, "fallback_used": False}
-    if "pdf" in (mime_type or "") or suffix == ".pdf":
+    normalized_mime = (mime_type or "").lower()
+    if "pdf" in normalized_mime or suffix == ".pdf" or content.startswith(b"%PDF"):
         return _extract_pdf(content, diagnostics)
-    if "word" in (mime_type or "") or suffix == ".docx":
+    if "word" in normalized_mime or "officedocument" in normalized_mime or suffix == ".docx" or content.startswith(b"PK\x03\x04"):
         return _extract_docx(content, diagnostics)
     raise ResumeParsingError(f"Unsupported resume type: {mime_type or suffix or 'unknown'}")
 

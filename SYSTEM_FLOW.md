@@ -7,8 +7,8 @@ The system helps recruiters review applicants faster and more consistently.
 It can:
 
 - Create job profiles with AI help.
-- Import applicants from CSV.
-- Avoid duplicate candidates using `application_id`.
+- Import applicants from flexible CSV sources.
+- Avoid duplicate candidates using `application_id`, or candidate email plus applied role when no application ID exists.
 - Download and parse resumes.
 - Analyze candidates against a selected job.
 - Pause and resume analysis batches.
@@ -95,14 +95,37 @@ The recruiter uploads a CSV and selects the job profile to analyze against.
 The system:
 
 - creates an import batch
-- stores original CSV data
+- stores original CSV data exactly as received
+- detects common column meanings from different CSV header styles
+- normalizes key fields needed for analysis
 - creates applicants from CSV rows
 - links each applicant to the import batch
 - queues applicants for analysis
 
+The CSV does not need one fixed format.
+
+The importer maps common header variations into the system fields it needs. For example:
+
+- candidate name can come from `candidate_full_name`, `Name`, `Full Name`, `Applicant Name`, or `Sender Name`
+- candidate email can come from `candidate_email_from_resume`, `Email`, `Email Address`, `Applicant Email`, or `Sender Email`
+- candidate phone can come from `Phone`, `Phone Number`, `Mobile`, or `Contact Number`
+- applied role can come from `final_position_applied`, `Position`, `Job Title`, `Role`, `Opening`, or similar fields
+- applied date can come from `Applied Date`, `Application Date`, `Submitted At`, or similar fields
+- resume link can come from `resume_storage_link`, `Resume Link`, `Resume URL`, `CV Link`, `CV URL`, or attachment/file URL fields
+- extra source fields such as `LinkedIn` or `Employment Status` remain attached to the applicant and are included in exports
+
+If the CSV has no applied-role column, the selected import job title is stored as the applicant's applied role for that batch. This keeps the role safeguard practical for single-job imports while still preventing cross-role rejection emails later.
+
+Each imported row stores:
+
+- the untouched source columns
+- canonical normalized fields used by analysis
+- a column-mapping record showing which source headers were used
+
 Deduplication:
 
 - If a row has an `application_id` that already exists, the system reuses that applicant.
+- If no `application_id` exists, the system can reuse an applicant with the same candidate email and applied role.
 - This prevents duplicate candidates when the same file is uploaded again.
 - It also helps when the same candidate pool is analyzed for another job later.
 
@@ -143,16 +166,19 @@ Resume behavior:
 
 ## 4. Resume Download And Parsing
 
-For each applicant, the system finds the resume link from the CSV data.
+For each applicant, the system finds the resume link from the normalized CSV data.
 
 It supports:
 
 - normal resume links
 - Google Drive sharing links where possible
+- direct download links such as Base44 resume URLs
 - PDF resumes
 - DOCX resumes
 
 The system extracts readable resume text.
+
+If a direct download link does not provide a clean filename or content type, the parser still attempts to detect PDF and DOCX files from the downloaded bytes.
 
 Status handling:
 
