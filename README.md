@@ -33,9 +33,12 @@ This repository contains a production-oriented scaffold for an internal recruite
 Copy `.env.example` to `.env` and set:
 
 ```bash
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST/DB?sslmode=require
 DEEPSEEK_API_KEY=...
 SECRET_KEY=...
 ```
+
+`DATABASE_URL` should point to your Neon PostgreSQL database. Keep `sslmode=require` in the URL.
 
 For rejection email sending, also set SMTP values for the recruiter mailbox:
 
@@ -56,6 +59,20 @@ Use the real mailbox address and password or app password from your email provid
 
 ```bash
 docker compose up --build
+```
+
+This starts the app, worker, frontend, and local Redis. PostgreSQL is expected to be Neon via `DATABASE_URL`.
+
+If you need the old local Postgres container for development, run:
+
+```bash
+docker compose --profile local-db up --build
+```
+
+and use:
+
+```bash
+DATABASE_URL=postgresql+psycopg://resume:resume@postgres:5432/resume_filter
 ```
 
 The backend seeds:

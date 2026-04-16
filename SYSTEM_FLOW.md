@@ -30,10 +30,11 @@ It can:
 8. Create final score and decision.
 9. Review and filter applicants.
 10. Analyze the same applicants for more job titles if needed.
-11. Draft AI-personalized rejection emails for rejected candidates.
-12. Review, edit, and send approved emails.
-13. Track sent, failed, and drafted emails by applicant and role.
-14. Export enriched results.
+11. Open an applicant and choose which job analysis to inspect.
+12. Draft AI-personalized rejection emails for rejected candidates.
+13. Review, edit, and send approved emails.
+14. Track sent, failed, and drafted emails by applicant and role.
+15. Export enriched results.
 
 ## 1. Job Profile Creation
 
@@ -249,8 +250,12 @@ This means one candidate can have:
 
 - score for Job A
 - decision for Job A
+- detailed dimension results for Job A
+- final rationale for Job A
 - score for Job B
 - decision for Job B
+- detailed dimension results for Job B
+- final rationale for Job B
 
 This avoids candidate duplication and supports multiple hiring roles from the same applicant pool.
 
@@ -298,13 +303,24 @@ It can show:
 - resume parsing status
 - parsed resume text
 - structured candidate profile
-- dimension-wise evaluations
-- final evaluation
 - scores for each job title
 - decisions for each job title
+- a selected job-analysis dropdown
+- selected job score
+- selected job decision
+- selected job final rationale
+- selected job dimension-wise evaluations
 - rejection email history for this applicant
 
 This helps the recruiter understand why the system gave a score.
+
+Selected-analysis behavior:
+
+- The applicant can have many job analyses.
+- The recruiter selects the job analysis they want to inspect.
+- Score cards, decision, final rationale, and dimension results update to match the selected job.
+- Draft rejection email uses the selected job analysis, not a random latest analysis.
+- This prevents mixing the reasoning from one role with the email or decision for another role.
 
 The rejection email history shows:
 
@@ -488,6 +504,8 @@ That gives recruiters clearer reasoning behind each score and decision.
 - Recovery after backend or worker restart.
 - Analyze same candidates for multiple jobs.
 - Job-specific scores and decisions.
+- Applicant detail selected-job analysis view.
+- Job-specific dimension and rationale inspection from applicant detail.
 - Applicant filtering by job, status, decision, and search.
 - Selected applicant count while filtering.
 - Re-run selected applicants.

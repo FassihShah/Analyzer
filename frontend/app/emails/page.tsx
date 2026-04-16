@@ -123,7 +123,7 @@ export default function EmailsPage() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageHeader
         eyebrow="Candidate communication"
         title="Rejection emails"
@@ -135,7 +135,7 @@ export default function EmailsPage() {
         </div>
       )}
       <Card className="overflow-hidden p-0">
-        <div className="grid gap-3 border-b border-line p-5 md:grid-cols-[1fr_180px_160px_auto]">
+        <div className="grid gap-3 border-b border-line p-4 md:grid-cols-[1fr_170px_150px_auto]">
           <Input placeholder="Search by candidate, email, job, or subject" value={query} onChange={(event) => setQuery(event.target.value)} />
           <select className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={jobId} onChange={(event) => setJobId(event.target.value)}>
             <option value="">All jobs</option>
@@ -156,7 +156,7 @@ export default function EmailsPage() {
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-paper text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">
               <tr className="border-b border-line">
-                <th className="px-5 py-3"><input type="checkbox" checked={draftIds.length > 0 && draftIds.every((id) => selectedIds.includes(id))} onChange={toggleAllDrafts} /></th>
+                <th className="px-4 py-2.5"><input type="checkbox" checked={draftIds.length > 0 && draftIds.every((id) => selectedIds.includes(id))} onChange={toggleAllDrafts} /></th>
                 <th className="px-4 py-3">Candidate</th>
                 <th className="px-4 py-3">Job</th>
                 <th className="px-4 py-3">Subject</th>
@@ -169,7 +169,7 @@ export default function EmailsPage() {
             <tbody>
               {filtered.map((email) => (
                 <tr className="border-b border-line align-top transition hover:bg-paper/80" key={email.id}>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-3">
                     <input type="checkbox" checked={selectedIds.includes(email.id)} onChange={() => toggleSelected(email.id)} disabled={email.status !== "draft"} />
                   </td>
                   <td className="px-4 py-4">

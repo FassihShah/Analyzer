@@ -176,7 +176,7 @@ export default function ImportsPage() {
   }, [activeImportId]);
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageHeader
         eyebrow="CSV intake"
         title="Applicant import"
@@ -208,7 +208,7 @@ export default function ImportsPage() {
         {message && <p className="mt-4 text-sm text-moss">{message}</p>}
         {error && <p className="mt-4 rounded-lg border border-[#efc6bd] bg-[#fff1ee] px-4 py-3 text-sm text-[#8a352b]">{error}</p>}
         {progress && (
-          <div className="mt-6 rounded-lg border border-line bg-paper/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+          <div className="mt-5 rounded-lg border border-line bg-paper/80 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">

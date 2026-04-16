@@ -36,7 +36,7 @@ export default function ExportsPage() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageHeader
         eyebrow="Recruiter-ready output"
         title="Exports"

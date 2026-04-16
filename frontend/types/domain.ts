@@ -70,7 +70,12 @@ export type Applicant = {
   resume?: Record<string, unknown>;
   profile?: { profile_json?: unknown } & Record<string, unknown>;
   dimension_results?: DimensionResult[];
-  final_evaluation?: { summary?: string } & Record<string, unknown>;
+  final_evaluation?: {
+    summary?: string;
+    strengths?: string[];
+    gaps?: string[];
+    interview_recommendation?: string;
+  } & Record<string, unknown>;
   job_title?: string;
   selected_job_analysis?: JobAnalysis;
   job_analyses?: JobAnalysis[];
@@ -85,6 +90,8 @@ export type JobAnalysis = {
   decision?: string | null;
   summary?: string;
   reason?: string | null;
+  matches_applied_role?: boolean;
+  role_match_reason?: string;
 };
 
 export type CandidateEmail = {

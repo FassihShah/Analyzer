@@ -35,7 +35,7 @@ export default function DashboardPage() {
   }, [applicants, emails]);
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageHeader
         eyebrow="Multi-pass candidate evaluation"
         title="Dashboard"
@@ -43,12 +43,12 @@ export default function DashboardPage() {
       />
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         {metrics.map(([label, value, Icon]) => (
-          <Card className="min-h-32 transition hover:-translate-y-0.5 hover:border-[#b9ddd5]" key={label as string}>
+          <Card className="min-h-24 transition hover:-translate-y-0.5 hover:border-[#b9ddd5]" key={label as string}>
             <div className="flex items-start justify-between gap-3">
               <p className="text-sm font-semibold text-[#5f6f6b]">{label}</p>
               <Icon className="text-moss" size={20} />
             </div>
-            <p className="mt-5 text-3xl font-black">{value}</p>
+            <p className="mt-3 text-2xl font-black">{value}</p>
           </Card>
         ))}
       </section>

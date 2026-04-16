@@ -37,6 +37,11 @@ select {
   font: inherit;
 }
 
+select {
+  min-height: 2.25rem;
+  border-radius: 6px;
+}
+
 .focus-ring:focus-visible {
   outline: 3px solid rgba(20, 122, 108, 0.28);
   outline-offset: 2px;

@@ -254,7 +254,7 @@ export default function JobsPage() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageHeader
         eyebrow="Role expectations"
         title="Job profiles"

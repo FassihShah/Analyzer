@@ -93,8 +93,9 @@ export default function ApplicantsPage() {
     setError("");
     setMessage("");
     try {
-      await apiFetch("/applicants/analyze-for-job", { method: "POST", body: JSON.stringify({ applicant_ids: selectedIds, job_id: analysisJobId, force: true }) });
-      setMessage(`${selectedIds.length} applicants queued for the selected job.`);
+      const result = await apiFetch<{ queued: number; skipped?: Array<{ reason: string }> }>("/applicants/analyze-for-job", { method: "POST", body: JSON.stringify({ applicant_ids: selectedIds, job_id: analysisJobId, force: true }) });
+      const skipped = result.skipped?.length ? ` ${result.skipped.length} skipped because the selected job did not match their applied role or analysis already exists.` : "";
+      setMessage(`${result.queued} applicants queued for the selected job.${skipped}`);
       setSelectedIds([]);
       load();
     } catch (err) {
@@ -111,7 +112,7 @@ export default function ApplicantsPage() {
         method: "POST",
         body: JSON.stringify({ applicant_ids: selectedIds, job_id: emailJobId, overwrite_existing_drafts: true })
       });
-      const skipped = result.skipped.length ? ` ${result.skipped.length} skipped because they were not eligible.` : "";
+      const skipped = result.skipped.length ? ` ${result.skipped.length} skipped because they were not eligible or the selected job did not match their applied role.` : "";
       setMessage(`${result.drafted.length} rejection email drafts ready for review.${skipped}`);
       setSelectedIds([]);
       load();
@@ -164,7 +165,7 @@ export default function ApplicantsPage() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageHeader
         eyebrow="Ranked candidate review"
         title="Applicants"
@@ -176,7 +177,7 @@ export default function ApplicantsPage() {
         </div>
       )}
       <Card className="overflow-hidden p-0">
-        <div className="grid gap-5 border-b border-line bg-paper/80 p-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 border-b border-line bg-paper/80 p-4 sm:grid-cols-2 xl:grid-cols-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">Filtered applicants</p>
             <p className="mt-1 text-2xl font-black text-moss">{filtered.length}</p>
@@ -194,7 +195,7 @@ export default function ApplicantsPage() {
             <p className="mt-1 text-2xl font-black text-coral">{(filteredStatusCounts.failed ?? 0) + (filteredStatusCounts.missing_resume ?? 0)}</p>
           </div>
         </div>
-        <div className="grid gap-3 border-b border-line p-5 xl:grid-cols-[1fr_180px_180px_180px_auto]">
+        <div className="grid gap-3 border-b border-line p-4 xl:grid-cols-[1fr_170px_170px_170px_auto]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7a8a86]" size={18} />
             <Input className="pl-10" placeholder="Filter by name, email, skill, or strength" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -218,11 +219,11 @@ export default function ApplicantsPage() {
             <option value="missing_resume">Missing resume</option>
           </select>
           <div className="flex gap-2">
-            <Button className="min-h-10 bg-[#4d5752] px-3" onClick={reprocessSelected} disabled={!selectedIds.length}>Re-run ({selectedIds.length})</Button>
-            <Button className="min-h-10 bg-coral px-3 hover:bg-[#a84436]" onClick={deleteSelected} disabled={!selectedIds.length}>Delete ({selectedIds.length})</Button>
+            <Button className="bg-[#4d5752]" onClick={reprocessSelected} disabled={!selectedIds.length}>Re-run ({selectedIds.length})</Button>
+            <Button className="bg-coral hover:bg-[#a84436]" onClick={deleteSelected} disabled={!selectedIds.length}>Delete ({selectedIds.length})</Button>
           </div>
         </div>
-        <div className="flex flex-col gap-3 border-b border-line bg-paper/50 p-5 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 border-b border-line bg-paper/50 p-4 md:flex-row md:items-center md:justify-between">
           <p className="text-sm font-medium text-[#5f6f6b]">
             {selectedVisibleCount} selected in current filter, {selectedIds.length} selected overall.
           </p>
@@ -230,10 +231,10 @@ export default function ApplicantsPage() {
             <select className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={analysisJobId} onChange={(event) => setAnalysisJobId(event.target.value)}>
               {jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
             </select>
-            <Button className="min-h-10 bg-[#4d5752] px-3" onClick={analyzeSelectedForJob} disabled={!selectedIds.length || !analysisJobId}>Analyze selected ({selectedIds.length}) for job</Button>
+            <Button className="bg-[#4d5752]" onClick={analyzeSelectedForJob} disabled={!selectedIds.length || !analysisJobId}>Analyze selected ({selectedIds.length}) for job</Button>
           </div>
         </div>
-        <div className="flex flex-col gap-3 border-b border-line p-5 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 border-b border-line p-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm font-black text-ink">Rejection email drafts</p>
             <p className="mt-1 text-sm text-[#5f6f6b]">Draft only for selected candidates who already have a completed reject decision for the chosen job.</p>
@@ -242,7 +243,7 @@ export default function ApplicantsPage() {
             <select className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={emailJobId} onChange={(event) => setEmailJobId(event.target.value)}>
               {jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
             </select>
-            <Button className="min-h-10 bg-moss px-3" onClick={draftSelectedRejections} disabled={!selectedIds.length || !emailJobId}>
+            <Button className="bg-moss" onClick={draftSelectedRejections} disabled={!selectedIds.length || !emailJobId}>
               <Mail size={16} />
               Draft rejections ({selectedIds.length})
             </Button>

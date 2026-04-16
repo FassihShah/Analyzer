@@ -15,6 +15,7 @@ from app.services.candidate_email_service import (
     send_candidate_email,
     utc_now,
 )
+from app.services.role_matching import applicant_matches_job
 
 router = APIRouter(prefix="/candidate-emails", tags=["candidate-emails"])
 
@@ -86,6 +87,10 @@ async def draft_rejection_emails(
             continue
         if not applicant.candidate_email:
             skipped.append({"applicant_id": str(applicant_id), "reason": "Candidate email is missing."})
+            continue
+        matches_role, role_reason = applicant_matches_job(applicant, job)
+        if not matches_role:
+            skipped.append({"applicant_id": str(applicant_id), "reason": role_reason})
             continue
         try:
             run, final = latest_rejected_completed_analysis(session, applicant.id, job.id)
