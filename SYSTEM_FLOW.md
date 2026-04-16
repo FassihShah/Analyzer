@@ -18,6 +18,20 @@ It can:
 - Draft AI-personalized rejection emails from job-specific weaknesses.
 - Review, edit, send, and track rejection emails by applicant and role.
 
+## System Architecture
+
+The application runs as separate frontend, backend, worker, database, and queue components.
+
+- Frontend: Next.js recruiter interface.
+- Backend: FastAPI API and business logic.
+- Worker: Celery background processor for resume parsing, AI analysis, exports, and email tasks.
+- Database: Neon PostgreSQL, configured through `DATABASE_URL`.
+- Queue/cache: Redis, currently started locally through Docker Compose.
+- AI provider: DeepSeek chat completions.
+- Email provider: Hostinger SMTP with optional IMAP Sent-folder copy.
+
+Normal Docker startup uses Neon for PostgreSQL and local Docker Redis. The old local PostgreSQL container is available only through the optional `local-db` Docker Compose profile for development fallback.
+
 ## High-Level Flow
 
 1. Create a job profile.
