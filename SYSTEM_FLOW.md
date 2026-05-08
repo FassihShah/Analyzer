@@ -2,563 +2,580 @@
 
 ## Quick Summary
 
-The system helps recruiters review applicants faster and more consistently.
+The system helps recruiters screen candidates with structured evidence instead of keyword-only matching. It imports flexible CSV files, parses resumes, evaluates candidates against a selected job profile, stores role-specific analysis, and prepares reviewed rejection emails for candidates who are not a fit.
 
-It can:
+The live deployment is on AWS EC2 using Docker Compose. The EC2 host runs the frontend, FastAPI backend, Celery worker, and Redis container. PostgreSQL is supplied by `DATABASE_URL`, normally an external managed database such as Neon. A local PostgreSQL container exists only for the optional development profile.
 
-- Create job profiles with AI help.
-- Import applicants from flexible CSV sources.
-- Avoid duplicate candidates using `application_id`, or candidate email plus applied role when no application ID exists.
-- Download and parse resumes.
-- Analyze candidates against a selected job.
-- Pause and resume analysis batches.
-- Continue unfinished analysis after restart.
-- Analyze the same candidates for more job titles later.
-- Filter, review, re-run, delete, and export applicants.
-- Draft AI-personalized rejection emails from job-specific weaknesses.
-- Review, edit, send, and track rejection emails by applicant and role.
+## Runtime Components
 
-## System Architecture
+- Frontend: Next.js recruiter dashboard.
+- Backend: FastAPI API, auth, business logic, and startup recovery.
+- Worker: Celery worker consuming the `analysis` queue.
+- Database: PostgreSQL through `DATABASE_URL`.
+- Queue: Redis from Docker Compose.
+- AI provider: DeepSeek chat completions in JSON mode.
+- Resume parser: PyMuPDF, pdfplumber fallback, and python-docx.
+- Email provider: SMTP sending with optional IMAP Sent-folder copy.
 
-The application runs as separate frontend, backend, worker, database, and queue components.
+## Main User Flow
 
-- Frontend: Next.js recruiter interface.
-- Backend: FastAPI API and business logic.
-- Worker: Celery background processor for resume parsing, AI analysis, exports, and email tasks.
-- Database: Neon PostgreSQL, configured through `DATABASE_URL`.
-- Queue/cache: Redis, currently started locally through Docker Compose.
-- AI provider: DeepSeek chat completions.
-- Email provider: Hostinger SMTP with optional IMAP Sent-folder copy.
+1. Recruiter signs in.
+2. Recruiter creates a job profile, optionally from a pasted job description.
+3. Recruiter uploads a CSV and selects the target job.
+4. The backend stores original CSV data and maps common fields.
+5. Applicants are deduplicated.
+6. Applicants whose applied role matches the selected job are queued.
+7. Applicants whose applied role does not match are marked `role_mismatch`.
+8. Worker downloads and parses each resume.
+9. AI creates a structured candidate profile.
+10. AI evaluates all enabled dimensions in a batched request by default.
+11. AI final synthesis produces score, decision, rationale, strengths, gaps, and interview focus areas.
+12. Recruiter reviews dashboard, imports, applicants, applicant detail, analytics, emails, and exports.
+13. Recruiter may re-run applicants or analyze matching applicants for another job.
+14. Recruiter drafts rejection emails for completed rejected candidates.
+15. Recruiter reviews, edits, sends, and tracks emails.
+16. Recruiter exports enriched CSV results.
 
-Normal Docker startup uses Neon for PostgreSQL and local Docker Redis. The old local PostgreSQL container is available only through the optional `local-db` Docker Compose profile for development fallback.
+## 1. Authentication
 
-## High-Level Flow
+The backend uses JWT bearer authentication.
 
-1. Create a job profile.
-2. Upload an applicant CSV.
-3. Deduplicate applicants.
-4. Queue the analysis batch.
-5. Download and parse resumes.
-6. Build structured candidate profiles.
-7. Run batched multi-pass analysis.
-8. Create final score and decision.
-9. Review and filter applicants.
-10. Analyze the same applicants for more job titles if needed.
-11. Open an applicant and choose which job analysis to inspect.
-12. Draft AI-personalized rejection emails for rejected candidates.
-13. Review, edit, and send approved emails.
-14. Track sent, failed, and drafted emails by applicant and role.
-15. Export enriched results.
+The seed script creates:
 
-## 1. Job Profile Creation
+- Email: `admin@example.com`
+- Password: `admin123`
 
-The recruiter creates a job profile before importing applicants.
+The frontend stores the token in browser local storage under `resume_filter_token`. API calls include the token as `Authorization: Bearer <token>`. Failed or expired auth redirects the user to `/login`.
 
-To make this simple, the recruiter can paste:
+Production note: replace or change the seeded admin credentials before real use.
 
-- job description
-- responsibilities
-- requirements
-- hiring notes
-- skills needed
-- project expectations
+## 2. Job Profile Creation
 
-The AI drafts a structured job profile from that text.
+The recruiter can paste a raw job description. The backend asks DeepSeek to convert it into an editable profile. If AI drafting fails, a local fallback draft is generated.
 
-The recruiter can then edit and save it.
+The saved job profile includes:
 
-The job profile stores:
-
-- job title
+- title
 - department
-- role level
 - employment type
+- role level
 - location
-- required skills
-- preferred skills
-- tools and platforms
-- preferred project types
-- expected experience depth
-- education preferences
-- communication expectations
+- status: `draft`, `active`, or `archived`
+- description
+- summary
+- success definition
+- responsibilities
+- practical capabilities
+- requirements JSON
+- decision thresholds
+- prompt controls
 
-Why this matters:
+When a job is created without explicit rubrics, the backend creates default rubrics for the standard dimensions.
 
-- The same candidate can score differently for different jobs.
-- Each analysis is linked to a specific job title.
-- If a job profile changes, selected applicants can be re-run.
+Default thresholds:
 
-## 2. Applicant CSV Import
+- shortlist: 75
+- review: 55
+- reject: 0
+
+## 3. Prompt And Rubric Setup
+
+The seed script creates or updates prompt templates for:
+
+- `candidate_profile`
+- each evaluation dimension
+- `final_synthesis`
+
+Prompt versions are stored in the database. The current active prompt version is used during analysis.
+
+Rubrics are stored per job and include:
+
+- dimension name
+- weight
+- instructions
+- low/mid/high descriptions
+- red flag guidance
+- confidence guidance
+- enabled flag
+- version
+
+The recruiter UI intentionally keeps prompt/rubric controls simple. Most prompt behavior is code-managed and seeded by the backend.
+
+## 4. CSV Import
 
 The recruiter uploads a CSV and selects the job profile to analyze against.
 
-The system:
+The importer:
 
-- creates an import batch
-- stores original CSV data exactly as received
-- detects common column meanings from different CSV header styles
-- normalizes key fields needed for analysis
-- creates applicants from CSV rows
-- links each applicant to the import batch
-- queues applicants for analysis
+- creates an `ApplicantImport` record
+- reads the CSV with pandas
+- preserves each original row
+- maps common source headers into canonical fields
+- stores `_canonical_import` and `_column_mapping` inside `original_data`
+- creates or reuses applicants
+- creates or updates each applicant's resume record
+- sets initial status to `queued`
 
-The CSV does not need one fixed format.
+Common mapped fields:
 
-The importer maps common header variations into the system fields it needs. For example:
+- application ID
+- candidate name
+- candidate email
+- candidate phone
+- applied role
+- applied/received date
+- resume link
+- LinkedIn/profile URL
+- employment status
+- resume filename
+- resume MIME type
+- review status
+- candidate stage
 
-- candidate name can come from `candidate_full_name`, `Name`, `Full Name`, `Applicant Name`, or `Sender Name`
-- candidate email can come from `candidate_email_from_resume`, `Email`, `Email Address`, `Applicant Email`, or `Sender Email`
-- candidate phone can come from `Phone`, `Phone Number`, `Mobile`, or `Contact Number`
-- applied role can come from `final_position_applied`, `Position`, `Job Title`, `Role`, `Opening`, or similar fields
-- applied date can come from `Applied Date`, `Application Date`, `Submitted At`, or similar fields
-- resume link can come from `resume_storage_link`, `Resume Link`, `Resume URL`, `CV Link`, `CV URL`, or attachment/file URL fields
-- extra source fields such as `LinkedIn` or `Employment Status` remain attached to the applicant and are included in exports
+If no applied-role column exists, the selected job title is used as the applicant's applied role. This supports single-job CSV files.
 
-If the CSV has no applied-role column, the selected import job title is stored as the applicant's applied role for that batch. This keeps the role safeguard practical for single-job imports while still preventing cross-role rejection emails later.
+If an applied-role column exists, the applicant must match the selected job before analysis is queued.
 
-Each imported row stores:
+## 5. Deduplication
 
-- the untouched source columns
-- canonical normalized fields used by analysis
-- a column-mapping record showing which source headers were used
+The importer reuses an existing applicant in this order:
 
-Deduplication:
+1. Existing `application_id`.
+2. Existing candidate email for the same selected job.
+3. Existing candidate email plus the same applied role.
 
-- If a row has an `application_id` that already exists, the system reuses that applicant.
-- If no `application_id` exists, the system reuses an applicant with the same candidate email for the same selected job.
-- If the selected job differs, the same email can still be kept as a separate role/application record.
-- If a job-specific email match is not found, the system can still reuse an applicant with the same candidate email and applied role.
-- This prevents duplicate candidates when the same file is uploaded again.
-- It also helps when the same candidate pool is analyzed for another job later.
+When reusing an applicant, the importer merges the new row into `original_data`, keeps existing identity fields when already present, updates the import link, updates resume fields if missing, and queues analysis.
 
-Import history lets the recruiter:
+This avoids duplicates when the same CSV is uploaded again while still allowing the same candidate to be considered for separate roles when appropriate.
 
-- view previous CSV batches
-- check progress
-- analyze a batch for another job
-- delete an import batch and its related analysis data
+## 6. Role Matching Safeguard
 
-## 3. Analysis Batch Progress
+Before analysis is queued, the backend checks whether the applicant's stored role matches the selected job.
 
-After import, applicants are analyzed in the background.
+Role values can come from:
 
-The progress screen shows:
+- `Applicant.applied_role`
+- `final_position_applied`
+- `position_applied_from_email`
+- `position`
+- `job_title`
+- `role`
+
+The matcher:
+
+- normalizes text to lowercase tokens
+- removes role stop words such as `job`, `role`, `position`, and `opening`
+- accepts exact normalized title matches
+- accepts token overlap of at least 75% of the smaller token set
+
+If a candidate applied for `AI Developer` and the recruiter selects `Web Developer`, the applicant is marked `role_mismatch` and is not analyzed for the wrong job.
+
+This safeguard also applies when drafting rejection emails.
+
+## 7. Import Progress, Pause, Resume, And Delete
+
+Import progress shows:
 
 - total applicants
-- completed count
-- queued count
-- running count
-- failed count
-- missing resume count
-- percentage completed
-- job title used for the analysis
+- done count
+- percentage complete
+- status counts
+- applicant names
+- applicant statuses
+- score and decision when available
+- role mismatch reason when present
 
-The recruiter can pause and resume a batch.
+Statuses include:
+
+- `pending`
+- `queued`
+- `running`
+- `completed`
+- `failed`
+- `missing_resume`
+- `role_mismatch`
 
 Pause behavior:
 
-- It does not kill an applicant already inside an AI call.
-- The currently running applicant may still finish.
-- Remaining queued applicants wait.
+- The import status becomes `paused`.
+- Already-running work may finish.
+- Queued applicants stay queued but the worker does not start them while the import is paused.
 
 Resume behavior:
 
-- Queued applicants continue from where the batch stopped.
-- The recruiter does not need to upload the CSV again.
+- The import status returns to `imported`.
+- Queued applicants are dispatched again.
 
-## 4. Resume Download And Parsing
+Delete behavior:
 
-For each applicant, the system finds the resume link from the normalized CSV data.
+- Deleting an import deletes the import record.
+- It also deletes applicants from that import and their resume, profile, evaluation run, dimension, and final evaluation rows.
 
-It supports:
+## 8. Resume Download And Parsing
 
-- normal resume links
-- Google Drive sharing links where possible
-- direct download links such as Base44 resume URLs
-- PDF resumes
-- DOCX resumes
+Each applicant has a `Resume` record.
 
-The system extracts readable resume text.
+The worker fetches the resume from `resume.storage_link`. Supported links include:
 
-If a direct download link does not provide a clean filename or content type, the parser still attempts to detect PDF and DOCX files from the downloaded bytes.
+- direct PDF links
+- direct DOCX links
+- Google Drive file links that can be converted to `uc?export=download&id=...`
+- links whose content bytes reveal PDF or DOCX even when filename/content type is unclear
 
-Status handling:
+PDF parsing:
 
-- Missing resume link -> `missing_resume`
-- Unreadable or failed resume -> `failed`
-- Successful parsing -> analysis continues
+1. Try PyMuPDF.
+2. If no text is found or parsing fails, try pdfplumber.
+3. If still unreadable, mark OCR as required and fail the resume extraction.
 
-The system does not invent resume information if the resume cannot be read.
+DOCX parsing uses python-docx.
 
-## 5. Structured Candidate Profile
+Failure behavior:
 
-The first AI step converts resume text into a structured profile.
+- Missing resume link becomes `missing_resume`.
+- Unsupported or unreadable files become `failed`.
+- The system does not invent resume information when parsing fails.
 
-The profile can include:
+## 9. Structured Candidate Profile
+
+The first AI analysis step turns resume text into structured JSON.
+
+The profile may include:
 
 - candidate name
-- headline or summary
-- skills
-- tools and platforms
-- projects
-- project evidence snippets
+- headline
 - education entries
 - experience entries
-- achievements
+- projects
+- skills
+- tools and platforms
 - inferred domains
-- ownership indicators
+- certifications
+- achievements
 - seniority indicators
+- ownership indicators
+- project evidence snippets
 - ambiguity flags
-
-This step only organizes evidence.
-
-It does not make the final decision.
-
-Empty-profile protection:
-
-- If the AI returns an empty profile even though resume text exists, the system retries.
-- If it is still empty, a fallback parser extracts obvious resume information.
-- This prevents good candidates from being scored as zero because of an empty AI response.
-
-## 6. Batched Multi-Pass Analysis
-
-The system still evaluates candidates in multiple dimensions, but it reduces AI calls.
-
-Instead of calling the AI separately for every dimension, the system normally sends one batched dimension-analysis request.
-
-This keeps analysis detailed while making it faster.
-
-Dimensions evaluated:
-
-- project analysis
-- project complexity
-- ownership
-- skill relevance
-- experience depth
-- education relevance
-- communication clarity
-- growth potential
-
-Each dimension includes:
-
-- score
 - confidence
+
+This step organizes evidence only. It does not make the hiring decision.
+
+If DeepSeek returns malformed JSON, the backend creates a conservative fallback profile from parsed resume text. The fallback extracts obvious names, skills, projects, experience hints, domains, and evidence snippets, then marks the profile with low confidence.
+
+## 10. Batched Multi-Dimension Evaluation
+
+The normal evaluation path uses a single batched DeepSeek request for all enabled dimensions.
+
+Default dimensions:
+
+- `project_analysis`
+- `project_complexity`
+- `ownership`
+- `skill_relevance`
+- `experience_depth`
+- `education_relevance`
+- `communication_clarity`
+- `growth_potential`
+
+Each dimension result stores:
+
+- score from 0 to 10
+- confidence from 0 to 1
 - reasoning
 - evidence
 - red flags
 - missing information
+- relevance to the job
+- dimension-specific fields, such as projects, ownership category, or inferred level
+- token usage
+- raw AI response
 
-Usual AI analysis flow:
+The code can still run separate dimension calls if `job.prompt_controls.separate_dimension_calls` is set, but this is not the default path.
 
-1. Build structured candidate profile.
-2. Run batched dimension analysis.
-3. Produce final synthesis and decision.
+## 11. Weighted Score And Final Synthesis
 
-## 7. Final Score And Decision
+After dimension analysis, the backend computes a controlled weighted score from the stored dimension scores and job rubric weights.
 
-After dimension analysis, the system creates the final candidate result.
+Default rubric weights emphasize:
 
-The final result includes:
+- skill relevance
+- project analysis
+- ownership
+- project complexity
+- experience depth
 
-- final candidate score
-- shortlist, review, or reject decision
-- candidate fit summary
-- top strengths
-- top gaps
-- best project relevance
-- interview recommendation
-- interview focus areas
-- AI notes or red flags
+Education and communication clarity are intentionally lighter signals.
 
-The score is weighted.
+The final synthesis prompt receives:
 
-Higher-impact areas such as skills, projects, ownership, and experience matter more than lighter signals such as resume clarity.
-
-## 8. Analyze Same Candidates For More Jobs
-
-The recruiter does not need to import the same CSV again for another job.
-
-They can:
-
-- open an import batch
-- choose another job title
-- queue the same applicants for that job
-
-They can also select applicants from the Applicants page and analyze only those selected applicants for another job.
-
-The system stores job-specific analysis separately.
-
-This means one candidate can have:
-
-- score for Job A
-- decision for Job A
-- detailed dimension results for Job A
-- final rationale for Job A
-- score for Job B
-- decision for Job B
-- detailed dimension results for Job B
-- final rationale for Job B
-
-This avoids candidate duplication and supports multiple hiring roles from the same applicant pool.
-
-## 9. Applicant Review
-
-The Applicants page is the main recruiter review screen.
-
-Recruiters can filter by:
-
-- decision
-- analysis job title
-- processing status
-- name
-- email
-- skill
-- strength
-
-Processing statuses:
-
-- queued
-- running
-- completed
-- failed
-- missing resume
-
-The page also shows:
-
-- number of filtered applicants
-- selected applicants in current filter
-- total selected applicants
-
-Selected applicants can be:
-
-- re-run
-- deleted
-- analyzed for another job title
-- drafted for rejection emails when they have a completed `reject` decision for the selected job
-
-## 10. Applicant Detail Page
-
-The applicant detail page shows deeper evidence.
-
-It can show:
-
-- resume parsing status
-- parsed resume text
 - structured candidate profile
-- scores for each job title
-- decisions for each job title
-- a selected job-analysis dropdown
-- selected job score
-- selected job decision
-- selected job final rationale
-- selected job dimension-wise evaluations
-- rejection email history for this applicant
+- job profile and thresholds
+- dimension results
+- controlled weighted score
 
-This helps the recruiter understand why the system gave a score.
+Final evaluation stores:
 
-Selected-analysis behavior:
+- final score
+- final confidence
+- decision
+- interview recommendation
+- summary
+- strengths
+- gaps
+- best project relevance
+- interview focus areas
+- red flags
+- missing information
+- synthesis JSON
 
-- The applicant can have many job analyses.
-- The recruiter selects the job analysis they want to inspect.
-- Score cards, decision, final rationale, and dimension results update to match the selected job.
-- Draft rejection email uses the selected job analysis, not a random latest analysis.
-- This prevents mixing the reasoning from one role with the email or decision for another role.
+The final decision is one of:
 
-The rejection email history shows:
+- `shortlist`
+- `review`
+- `reject`
 
-- job title or role
-- email status: `draft`, `sent`, or `failed`
-- recipient email
-- sent timestamp
-- last updated timestamp
-- subject
-- full drafted email body
-- delivery or Sent-folder warning if one exists
+If the AI returns an invalid decision value, the backend falls back to the job thresholds.
 
-This keeps the candidate communication trail visible from the applicant's own record, not only from the Emails page.
+## 12. Applicant Review
 
-## 11. Dashboard And Analytics
+The Applicants page supports:
 
-The Dashboard gives a quick overview:
+- filtering by decision
+- filtering by job analysis
+- filtering by processing status
+- searching by name, email, skill, or strength
+- selecting all visible applicants
+- re-running selected applicants
+- deleting selected applicants
+- analyzing selected applicants for a selected job
+- drafting rejection emails for selected candidates and selected job
 
-- total imported applicants
+The table shows:
+
+- candidate name and email
+- applied role
+- score
+- decision
+- processing status
+- best project relevance
+- top strengths
+
+## 13. Applicant Detail
+
+The applicant detail page shows:
+
+- role-specific analysis selector
+- score, decision, and status for the selected role
+- all known job analyses for the applicant
+- role match/block status
+- selected-role rationale
+- selected-role dimension results
+- resume parsing status and extracted text
+- structured candidate profile
+- original applicant data
+- selected-role rejection email history
+- other-role email history
+
+Candidate profile and resume evidence are shared across role analyses. Scores, decisions, dimension results, and rejection email eligibility are role-specific.
+
+## 14. Analyze Same Applicant For Another Job
+
+Recruiters can analyze:
+
+- a full import batch for another job
+- selected applicants for another job
+- one applicant from the detail page
+
+The same applicant can have multiple `EvaluationRun` records, one per job. The detail page lets the recruiter choose which role analysis to inspect.
+
+The role matching safeguard still applies. The system avoids analyzing an applicant for a job that does not match the applicant's applied role unless the role titles match under the token-overlap rule.
+
+If `force` is true, existing analysis for that applicant and selected job is cleared before queuing a new run.
+
+## 15. Reprocessing
+
+Reprocessing one applicant or a selected batch:
+
+- clears previous analysis rows
+- clears candidate profiles
+- queues the applicant again
+- reuses existing resume text when already extracted
+
+Single-job forced analysis clears only the analysis rows for that applicant and target job.
+
+## 16. Recovery After Restart
+
+On backend startup, recovery runs automatically.
+
+It:
+
+- finds applicants stuck in `running`
+- sets them back to `queued`
+- marks their running evaluation runs as `failed` with an interruption reason
+- dispatches all queued applicants to Celery
+
+This helps long-running batches recover after backend or worker restart.
+
+## 17. Rejection Email Drafting
+
+A rejection email draft can be created only when:
+
+- applicant has an email address
+- recruiter selected a specific job
+- applicant's applied role matches that job
+- applicant has a completed analysis for that job
+- final decision for that job is `reject`
+
+This prevents sending rejection emails for:
+
+- unanalyzed applicants
+- candidates analyzed only for another role
+- shortlisted candidates
+- manual review candidates
+- candidates without email addresses
+- role-mismatched applicants
+
+The email generator uses:
+
+- candidate name and email
+- applied role
+- selected job title and requirements
+- final evaluation summary
+- strengths
+- gaps
+- red flags and missing information
+- lowest-scoring dimensions
+- structured candidate profile
+
+The generated email must not mention AI, internal scores, algorithms, or rubrics.
+
+## 18. Email Review, Sending, And Tracking
+
+Emails are stored before sending.
+
+Statuses:
+
+- `draft`: generated and editable
+- `sent`: SMTP send succeeded
+- `failed`: send attempt failed
+
+Recruiters can:
+
+- filter emails by job
+- filter by status
+- search by candidate, email, job, or subject
+- review and edit draft subject/body
+- send one draft
+- send selected drafts in bulk
+
+Sending behavior:
+
+- SMTP is used to send the email.
+- If enabled, IMAP is used to append a copy to the Sent folder.
+- If SMTP succeeds but Sent-folder copy fails, status remains `sent` and the warning is stored in `failure_reason`.
+
+## 19. Dashboard And Analytics
+
+Dashboard metrics:
+
+- imported applicants
 - shortlisted candidates
 - manual review candidates
 - rejected candidates
 - failed analyses
-- email drafts waiting for review
+- email drafts
+
+Dashboard lists:
+
 - recent jobs
 - recent applicants
 
-The Analytics page gives a lightweight scoring overview:
+Analytics shows:
 
 - average final score
 - scored candidates
 - imported candidates
 
-## 12. Recovery After Restart
+## 20. Export
 
-The system can recover unfinished work.
+The Exports page downloads CSV output by job, optionally filtered by decision.
 
-If the backend or worker stops during analysis:
+Export preserves original applicant columns and adds these ten system fields:
 
-- unfinished applicants can be returned to the queue
-- stuck running applicants can continue after restart
-- the recruiter does not need to re-import the CSV
+- `resume_analysis_status`
+- `final_candidate_score`
+- `final_candidate_decision`
+- `candidate_fit_summary`
+- `top_strengths`
+- `top_gaps`
+- `best_project_relevance`
+- `interview_recommendation`
+- `interview_focus_areas`
+- `ai_notes`
 
-This makes long analysis batches safer.
+Raw AI responses, token usage, prompt versions, parser diagnostics, structured profiles, dimension results, and final evaluation rows remain in PostgreSQL and are not included in the recruiter CSV export.
 
-## 13. Export
+## 21. EC2 Deployment Flow
 
-When review is complete, the recruiter can export results as an enriched CSV.
+The current deployment model is:
 
-The export keeps original applicant data and adds AI result fields.
+1. EC2 host has Docker and Docker Compose installed.
+2. Repository is cloned on the EC2 host.
+3. `.env` is created with production values.
+4. Docker Compose starts Redis, backend, worker, and frontend.
+5. Backend seeds database and starts FastAPI on port `8000`.
+6. Worker starts Celery on queue `analysis`.
+7. Frontend starts Next.js on port `3000`.
 
-Export fields can include:
+Current public endpoints, if using raw ports:
 
-- final score
-- decision
-- summary
-- strengths
-- gaps
-- interview recommendation
-- interview focus areas
+- Frontend: `http://EC2_HOST:3000`
+- Backend API: `http://EC2_HOST:8000/api`
+- Backend docs: `http://EC2_HOST:8000/docs`
+- Health: `http://EC2_HOST:8000/health`
 
-## 14. Rejection Email Drafting, Sending, And Tracking
+Important EC2 settings:
 
-The recruiter can create AI-personalized rejection emails after analysis is complete.
+- `NEXT_PUBLIC_API_BASE_URL` must point to the public backend API URL.
+- `CORS_ORIGINS` must include the public frontend URL.
+- The EC2 security group must allow the chosen public frontend/API ports.
+- Redis port `6379` should not be open publicly.
+- For production public use, put the app behind HTTPS with a reverse proxy or load balancer.
 
-Eligibility rules:
+Useful commands:
 
-- The applicant must have an email address.
-- The recruiter must choose a specific job title.
-- The applicant must already have a completed analysis for that job title.
-- The completed decision for that job must be `reject`.
-- The draft must be reviewed before sending.
+```bash
+docker compose up --build -d
+docker compose ps
+docker compose logs --tail=120 backend
+docker compose logs --tail=120 worker
+docker compose restart backend worker
+```
 
-This prevents sending rejection emails for:
+## 22. Data Model Overview
 
-- candidates who were not analyzed yet
-- candidates analyzed for a different job only
-- shortlisted or review candidates
-- applicants with missing email addresses
+Core tables:
 
-Recommended flow:
+- `User`: admin/recruiter login.
+- `JobProfile`: job configuration.
+- `JobRubric`: per-job scoring dimensions and weights.
+- `PromptTemplate` and `PromptTemplateVersion`: AI prompts.
+- `ApplicantImport`: uploaded CSV batch.
+- `Applicant`: candidate/application row.
+- `Resume`: resume source, text, and parser diagnostics.
+- `CandidateProfile`: structured resume evidence.
+- `EvaluationRun`: one analysis run for one applicant/job.
+- `EvaluationDimensionResult`: dimension-level result for a run.
+- `FinalEvaluation`: final score and decision for a run.
+- `CandidateEmail`: rejection email draft/send tracking.
+- `AuditLog`: currently modeled for audit events.
 
-1. Filter Applicants by job title and `reject`.
-2. Select one or more candidates.
-3. Create AI-personalized rejection email drafts.
-4. Open the Emails page.
-5. Review and edit each draft if needed.
-6. Send a single approved draft or send selected approved drafts in bulk.
-7. Check status from the Emails page or the applicant detail page.
+## 23. Current Implementation Notes
 
-AI draft generation uses:
-
-- candidate name
-- selected job title
-- final evaluation summary
-- top candidate gaps
-- lowest-scoring analysis dimensions
-- missing information identified during evaluation
-- candidate strengths where appropriate
-- job requirements and success definition
-
-The email draft should include:
-
-- a clear but respectful rejection decision
-- two or three constructive improvement areas
-- humble, professional, and engaging wording
-- one brief positive note when supported by evidence
-- a polite closing from the recruiter
-
-The email draft must not include:
-
-- AI, algorithm, score, or rubric wording
-- harsh language
-- legal-risk wording
-- unsupported claims
-- promises about future opportunities
-
-The system stores each email before sending.
-
-Email statuses:
-
-- `draft`: generated but not sent yet
-- `sent`: delivered through SMTP
-- `failed`: send attempt failed
-
-Tracking surfaces:
-
-- The Emails page shows all rejection emails across applicants.
-- The Emails page tracks applicant, role, status, sent time, failure reason, and actions.
-- The applicant detail page shows that applicant's full rejection email history and full draft body.
-
-Delivery behavior:
-
-- Emails are sent through the configured Hostinger SMTP mailbox.
-- After SMTP delivery, the system tries to save a copy into the Hostinger Sent folder using IMAP.
-- If SMTP succeeds but the Sent-folder copy fails, the email remains `sent`, and the warning is stored on the email record.
-- Emails sent before Sent-folder copy support was added will not appear retroactively in Hostinger Sent.
-
-Required email configuration:
-
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USERNAME`
-- `SMTP_PASSWORD`
-- `RECRUITER_FROM_EMAIL`
-- `RECRUITER_FROM_NAME`
-- `IMAP_HOST`
-- `IMAP_PORT`
-- `SAVE_SENT_EMAIL_COPY`
-- `SENT_MAILBOX_NAME`
-
-## Why Multi-Pass Analysis Matters
-
-The system is not just doing keyword matching.
-
-For example, if a resume mentions Python, AI, APIs, and databases, the system still checks:
-
-- Were those skills used in real projects?
-- Were the projects complex enough?
-- Did the candidate personally own the work?
-- Is the experience relevant to this job?
-- Is there enough evidence to trust the claim?
-
-That gives recruiters clearer reasoning behind each score and decision.
-
-## Main Features
-
-- AI-assisted job profile creation.
-- Editable job profiles.
-- CSV applicant import.
-- Import history.
-- `application_id` deduplication.
-- Google Drive resume link handling.
-- PDF and DOCX parsing.
-- Structured candidate profile generation.
-- Empty-profile retry and fallback extraction.
-- Batched multi-pass analysis.
-- Weighted final scoring.
-- Shortlist, review, or reject decision.
-- Pause and resume analysis batches.
-- Recovery after backend or worker restart.
-- Analyze same candidates for multiple jobs.
-- Job-specific scores and decisions.
-- Applicant detail selected-job analysis view.
-- Job-specific dimension and rationale inspection from applicant detail.
-- Applicant filtering by job, status, decision, and search.
-- Selected applicant count while filtering.
-- Re-run selected applicants.
-- Delete selected applicants.
-- Delete complete import batches.
-- Applicant detail review.
-- AI-personalized rejection email drafting for completed rejected job analyses.
-- Single and bulk rejection email sending after draft review.
-- Rejection email tracking by applicant, role, status, and sent timestamp.
-- Applicant-level rejection email history with full drafted email body.
-- Hostinger SMTP sending with optional IMAP Sent-folder copy.
-- Dashboard overview.
-- Analytics overview.
-- Enriched CSV export.
+- Migrations exist, but Docker startup currently calls `SQLModel.metadata.create_all` through `app.seed`; it does not run Alembic automatically.
+- `init_db` also patches the PostgreSQL enum to include `queued` when needed.
+- Frontend Docker currently runs the Next.js dev server through `npm run dev`.
+- OCR packages are present in the image, but the current parser detects OCR need rather than executing OCR.
+- Candidate email rows are modeled separately and are not explicitly removed by `delete_applicant_tree` or `delete_import_tree`; deletion can need email cleanup if drafts/sent emails exist for those applicants.
+- Deleting a job deletes the job and rubrics only; avoid deleting jobs that still have applicant/evaluation history unless data cleanup is planned.
+- Rejection email generation falls back to an error if DeepSeek email drafting fails; sending uses SMTP only after a draft is stored and reviewed.
