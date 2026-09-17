@@ -26,9 +26,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-line bg-white lg:flex">
-        <Link href="/" className="flex h-[76px] items-center gap-3 border-b border-line px-6" aria-label="DYOS AI Hiring home">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#123344] text-lg font-bold text-white">D</span>
-          <span><span className="block text-[15px] font-bold tracking-tight text-ink">DYOS Hiring</span><span className="block text-xs text-[var(--muted)]">Recruitment workspace</span></span>
+        <Link href="/" className="flex h-[76px] items-center gap-3 border-b border-line px-6" aria-label="Hirer home">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#123344] text-lg font-bold text-white">H</span>
+          <span><span className="block text-[15px] font-bold tracking-tight text-ink">Hirer</span><span className="block text-xs text-[var(--muted)]">Recruitment workspace</span></span>
         </Link>
         <div className="mx-4 mt-5 flex items-center justify-between rounded-md border border-line bg-paper px-3 py-2.5 text-xs font-semibold text-ink">
           <span>Hiring workspace</span><ChevronDown size={14} aria-hidden="true" />
@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-20 border-b border-line bg-white lg:ml-[248px]">
         <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-7">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#123344] font-bold text-white lg:hidden">D</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#123344] font-bold text-white lg:hidden">H</span>
             <span className="text-sm font-semibold text-ink lg:text-[var(--muted)]">{nav.find((item) => item.href === pathname || (item.href !== "/" && pathname.startsWith(item.href)))?.label ?? "Workspace"}</span>
           </div>
           <span className="rounded-full border border-[#c9e3de] bg-[#edf8f5] px-3 py-1 text-xs font-semibold text-[#1c695e]">Recruiter workspace</span>

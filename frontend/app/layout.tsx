@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DYOS Hiring | Recruitment Workspace",
+  title: "Hirer | Recruitment Workspace",
   description: "Review applicants, manage job profiles, and coordinate evidence-led candidate evaluation."
 };
 
