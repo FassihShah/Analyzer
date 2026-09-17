@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Mail, Search, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -177,7 +178,7 @@ export default function ApplicantsPage() {
         </div>
       )}
       <Card className="overflow-hidden p-0">
-        <div className="grid gap-4 border-b border-line bg-paper/80 p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 border-b border-line bg-paper/80 p-4 xl:grid-cols-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">Filtered applicants</p>
             <p className="mt-1 text-2xl font-black text-moss">{filtered.length}</p>
@@ -299,6 +300,7 @@ export default function ApplicantsPage() {
                   </tr>
                 );
               })}
+              {!filtered.length && <tr><td colSpan={9} className="px-5"><EmptyState title="No applicants match these filters" description="Try another search or clear the filters to see more candidates." action={<button type="button" className="focus-ring text-sm font-semibold text-moss hover:underline" onClick={() => { setQuery(""); setDecision(""); setJobId(""); setStatus(""); }}>Clear filters</button>} /></td></tr>}
             </tbody>
           </table>
         </div>

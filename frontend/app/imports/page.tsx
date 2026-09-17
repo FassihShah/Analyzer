@@ -6,7 +6,7 @@ import { Pause, Play, Trash2, Upload } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, DEMO_MODE } from "@/lib/api";
 import type { JobProfile } from "@/types/domain";
 
 type ImportResult = {
@@ -79,7 +79,7 @@ export default function ImportsPage() {
     try {
       const result = await apiFetch<ImportResult>("/imports", { method: "POST", body: form });
       setActiveImportId(result.id);
-      setMessage(`${result.row_count} candidates imported and queued for one-by-one analysis.`);
+      setMessage(DEMO_MODE ? `${result.row_count} rows added to this browser's demo workspace. No analysis will run.` : `${result.row_count} candidates imported and queued for one-by-one analysis.`);
       loadImports();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not import CSV.");
@@ -180,16 +180,16 @@ export default function ImportsPage() {
       <PageHeader
         eyebrow="CSV intake"
         title="Applicant import"
-        description="Upload your existing applicant CSV and attach it to the job profile that should guide evaluation."
+        description={DEMO_MODE ? "Try the import flow with synthetic CSV data. Files stay in this browser and no AI analysis runs." : "Upload your existing applicant CSV and attach it to the job profile that should guide evaluation."}
       />
       <Card>
         <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#b9ddd5] bg-[#e9f8f4] text-moss shadow-[0_12px_28px_rgba(20,122,108,0.14)]">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#e9f3f6] text-moss">
             <Upload size={20} />
           </div>
           <div>
             <h2 className="font-black">Upload applicants</h2>
-            <p className="text-sm text-[#5f6f6b]">Original CSV fields are preserved for export.</p>
+            <p className="text-sm text-[#5f6f6b]">{DEMO_MODE ? "Use synthetic sample data only. Maximum 50 rows and 1 MB." : "Original CSV fields are preserved for export."}</p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -204,7 +204,7 @@ export default function ImportsPage() {
             <input className="focus-ring mt-1 block min-h-10 w-full rounded-md border border-line bg-white px-3 py-2" type="file" accept=".csv" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
           </label>
         </div>
-        <Button className="mt-5" onClick={upload} disabled={isUploading}>{isUploading ? "Uploading..." : "Upload CSV and start analysis"}</Button>
+        <Button className="mt-5" onClick={upload} disabled={isUploading || !file || !jobId}>{isUploading ? "Uploading..." : DEMO_MODE ? "Add demo applicants" : "Upload CSV and start analysis"}</Button>
         {message && <p className="mt-4 text-sm text-moss">{message}</p>}
         {error && <p className="mt-4 rounded-lg border border-[#efc6bd] bg-[#fff1ee] px-4 py-3 text-sm text-[#8a352b]">{error}</p>}
         {progress && (
@@ -271,7 +271,7 @@ export default function ImportsPage() {
         </div>
         <div className="space-y-3">
           {imports.map((item) => (
-            <div className="flex flex-col justify-between gap-3 rounded-lg border border-line bg-paper/70 p-4 transition hover:border-[#b9ddd5] hover:bg-white md:flex-row md:items-center" key={item.id}>
+            <div className="flex flex-col justify-between gap-3 rounded-lg border border-line bg-white p-4 transition-colors hover:border-[var(--line-strong)] md:flex-row md:items-center" key={item.id}>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-bold">{item.file_name}</p>

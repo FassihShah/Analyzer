@@ -8,4 +8,5 @@ dist/
 build/
 .pytest_cache/
 .mypy_cache/
+frontend/reports/
 postgres_data/

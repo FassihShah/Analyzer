@@ -3,15 +3,18 @@
 @tailwind utilities;
 
 :root {
-  color: #181c1f;
-  background: #f7faf9;
-  font-family:
-    "Inter",
-    "Segoe UI",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+  --ink: #14202b;
+  --muted: #62717e;
+  --accent: #176c86;
+  --accent-hover: #12566b;
+  --danger: #ad483f;
+  --canvas: #f5f7f8;
+  --surface: #ffffff;
+  --line: #dce3e8;
+  --line-strong: #c7d3da;
+  --focus: #76bfd0;
+  --shadow: 0 4px 20px rgb(25 45 58 / 4%);
+  color-scheme: light;
 }
 
 * {
@@ -21,12 +24,10 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(20, 122, 108, 0.16), transparent 340px),
-    radial-gradient(circle at bottom right, rgba(216, 92, 70, 0.11), transparent 300px),
-    linear-gradient(180deg, #fbfdfc 0%, #f1f7f5 56%, #eef5f2 100%);
-  color: #181c1f;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: Arial, "Segoe UI", system-ui, sans-serif;
+  font-feature-settings: "tnum";
   text-rendering: optimizeLegibility;
 }
 
@@ -38,17 +39,17 @@ select {
 }
 
 select {
-  min-height: 2.25rem;
-  border-radius: 6px;
+  min-height: 2.5rem;
+  border-radius: 8px;
 }
 
-.focus-ring:focus-visible {
-  outline: 3px solid rgba(20, 122, 108, 0.28);
+.focus-ring:focus-visible, :where(a, button, input, textarea, select, summary):focus-visible {
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: #bfe6dd;
+  background: #cceaf0;
 }
 
 ::-webkit-scrollbar {
@@ -57,15 +58,25 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: #ecf3f1;
+  background: #edf1f3;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #b6c9c5;
-  border: 3px solid #ecf3f1;
+  background: #b4c3ca;
+  border: 3px solid #edf1f3;
   border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #8caaa4;
+  background: #8da4af;
+}
+
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+a { text-underline-offset: 3px; }
+table { font-variant-numeric: tabular-nums; }
+th { white-space: nowrap; }
+td { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

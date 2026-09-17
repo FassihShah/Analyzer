@@ -193,7 +193,7 @@ export default function CandidateDetailPage() {
           {!jobsForAnalysis.length && <p className="text-sm text-[#8a352b]">No matching job profile was found for this applicant&apos;s applied role.</p>}
         </div>
         {selectedAnalysis && (
-          <div className={`mt-4 rounded-md border p-3 ${selectedRoleAllowed ? "border-[#b9ddd5] bg-[#e9f8f4]" : "border-[#f1b2a4] bg-[#fff0ed]"}`}>
+          <div className={`mt-4 rounded-md border p-3 ${selectedRoleAllowed ? "border-[#c9e3de] bg-[#edf8f5]" : "border-[#f1b2a4] bg-[#fff0ed]"}`}>
             <p className="text-sm font-black text-ink">Viewing: {selectedAnalysis.job_title}</p>
             <p className="mt-1 text-sm text-[#4f5f5b]">
               Score {selectedAnalysis.final_score ?? "-"} | Decision {selectedAnalysis.decision ?? "-"} | Status {selectedAnalysis.status ?? "-"}

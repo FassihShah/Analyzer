@@ -168,6 +168,24 @@ npm install
 npm run dev
 ```
 
+## Frontend-only portfolio demo
+
+The frontend can run without the backend. When no `NEXT_PUBLIC_API_BASE_URL` is configured, it uses a clearly labeled demo with fictional applicants, jobs, and email drafts. Demo changes are stored in the visitor's browser and can be cleared with **Reset demo**. No AI model, email provider, or backend is contacted. Use synthetic CSV files only; do not upload real candidate information to a portfolio demo.
+
+To deploy this mode on Vercel, import this repository and set the project's **Root Directory** to `frontend`. Keep the Next.js framework preset, set `NEXT_PUBLIC_DEMO_MODE=true`, and leave `NEXT_PUBLIC_API_BASE_URL` unset. The normal `npm run build` command builds the site. The frontend is a Next.js app rather than a static HTML export; Vercel handles its dynamic candidate-detail route.
+
+For local verification:
+
+```bash
+cd frontend
+npm ci
+npm run test:demo
+npm run lint
+npm run build
+```
+
+To connect the real backend instead, set `NEXT_PUBLIC_DEMO_MODE=false` and `NEXT_PUBLIC_API_BASE_URL` to its public HTTPS `/api` endpoint, then rebuild. Configure the backend's CORS origins for the deployed frontend. Variables prefixed `NEXT_PUBLIC_` are visible in the browser, so never store credentials there.
+
 ## CSV Import
 
 CSV import is not locked to one vendor format. The importer keeps original columns and maps common header variations into canonical fields.

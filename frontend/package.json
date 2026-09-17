@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "test:demo": "node --experimental-strip-types scripts/test-demo.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.4",

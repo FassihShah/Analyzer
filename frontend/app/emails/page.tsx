@@ -5,11 +5,12 @@ import Link from "next/link";
 import { Mail, Send } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, DEMO_MODE } from "@/lib/api";
 import type { CandidateEmail, JobProfile } from "@/types/domain";
 
 function formatDateTime(value?: string | null) {
@@ -79,7 +80,7 @@ export default function EmailsPage() {
     setMessage("");
     try {
       await apiFetch(`/candidate-emails/${emailId}/send`, { method: "POST" });
-      setMessage("Email sent.");
+      setMessage(DEMO_MODE ? "Marked as sent in this demo. No email was delivered." : "Email sent.");
       setSelectedIds((current) => current.filter((id) => id !== emailId));
       load();
     } catch (err) {
@@ -101,7 +102,7 @@ export default function EmailsPage() {
         body: JSON.stringify({ email_ids: ids })
       });
       const failed = result.failed.length ? ` ${result.failed.length} failed.` : "";
-      setMessage(`${result.sent.length} emails sent.${failed}`);
+      setMessage(DEMO_MODE ? `${result.sent.length} demo emails marked as sent. No messages were delivered.${failed}` : `${result.sent.length} emails sent.${failed}`);
       setSelectedIds([]);
       load();
     } catch (err) {
@@ -127,7 +128,7 @@ export default function EmailsPage() {
       <PageHeader
         eyebrow="Candidate communication"
         title="Rejection emails"
-        description="Review generated rejection drafts, edit the message, then send approved emails one by one or in bulk."
+        description={DEMO_MODE ? "Review sample rejection drafts and simulate sending. No messages leave your browser." : "Review generated rejection drafts, edit the message, then send approved emails one by one or in bulk."}
       />
       {(error || message) && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${error ? "border-[#efc6bd] bg-[#fff1ee] text-[#8a352b]" : "border-[#c8dfd4] bg-[#edf8f2] text-[#245b45]"}`}>
@@ -195,6 +196,7 @@ export default function EmailsPage() {
                   </td>
                 </tr>
               ))}
+              {!filtered.length && <tr><td colSpan={8} className="px-5"><EmptyState title="No emails in this view" description="Try another status or search term." action={<button type="button" className="focus-ring text-sm font-semibold text-moss hover:underline" onClick={() => { setQuery(""); setStatus(""); setJobId(""); }}>Clear filters</button>} /></td></tr>}
             </tbody>
           </table>
         </div>

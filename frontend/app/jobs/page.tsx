@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, DEMO_MODE } from "@/lib/api";
 import type { JobProfile } from "@/types/domain";
 
 type SimpleJobDraft = {
@@ -203,7 +203,7 @@ export default function JobsPage() {
         body: JSON.stringify({ description: sourceText })
       });
       applyAiDraft(result);
-      setMessage("Draft generated. Review and edit it, then create the job profile.");
+      setMessage(DEMO_MODE ? "Sample draft created from your text. No AI model ran; review and edit before saving." : "Draft generated. Review and edit it, then create the job profile.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not generate the draft.");
     } finally {
@@ -258,20 +258,21 @@ export default function JobsPage() {
       <PageHeader
         eyebrow="Role expectations"
         title="Job profiles"
-        description="Paste a full job description, let AI fill the profile, then edit only what matters. Prompts and rubrics stay coded in the backend."
+        description={DEMO_MODE ? "Create and edit sample job profiles in this browser. Draft-from-description is a simulated preview, not AI analysis." : "Create a role profile manually or draft one from a job description. Review every detail before using it to evaluate candidates."}
       />
 
       <Card>
         <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#b9ddd5] bg-[#e9f8f4] text-moss shadow-[0_12px_28px_rgba(20,122,108,0.14)]">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#e9f3f6] text-moss">
             <Sparkles size={20} />
           </div>
           <div>
-            <h2 className="font-black">AI fill from job description</h2>
-            <p className="text-sm text-[#5f6f6b]">Paste everything you have. The generated profile remains editable.</p>
+            <h2 className="font-black">{DEMO_MODE ? "Draft from description" : "AI fill from job description"}</h2>
+            <p className="text-sm text-[#5f6f6b]">{DEMO_MODE ? "The demo copies key text into an editable profile. No AI model is called." : "Paste everything you have. The generated profile remains editable."}</p>
           </div>
         </div>
         <Textarea
+          aria-label="Job description to generate a profile from"
           className="min-h-44"
           placeholder="Paste full job description, responsibilities, requirements, and your hiring notes here..."
           value={sourceText}
@@ -279,13 +280,13 @@ export default function JobsPage() {
         />
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-[#5f6f6b]">Tip: include what matters most, such as self-projects, skills, and whether experience is required.</p>
-          <Button onClick={generateDraft} disabled={isGenerating}>{isGenerating ? "Generating..." : "Generate editable profile"}</Button>
+          <Button onClick={generateDraft} disabled={isGenerating}>{isGenerating ? "Preparing..." : DEMO_MODE ? "Create sample draft" : "Generate editable profile"}</Button>
         </div>
       </Card>
 
       <Card>
         <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#b9ddd5] bg-[#e9f8f4] text-moss shadow-[0_12px_28px_rgba(20,122,108,0.14)]">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#e9f3f6] text-moss">
             <BriefcaseBusiness size={20} />
           </div>
           <div>
@@ -301,12 +302,12 @@ export default function JobsPage() {
         )}
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Input placeholder="Job title" value={draft.title} onChange={(event) => setField("title", event.target.value)} />
-          <Input placeholder="Department" value={draft.department} onChange={(event) => setField("department", event.target.value)} />
-          <Input placeholder="Location" value={draft.location} onChange={(event) => setField("location", event.target.value)} />
-          <Input placeholder="Employment type" value={draft.employment_type} onChange={(event) => setField("employment_type", event.target.value)} />
-          <Input placeholder="Role level" value={draft.role_level} onChange={(event) => setField("role_level", event.target.value)} />
-          <select className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={draft.status} onChange={(event) => setField("status", event.target.value)}>
+          <Input aria-label="Job title" placeholder="Job title" value={draft.title} onChange={(event) => setField("title", event.target.value)} />
+          <Input aria-label="Department" placeholder="Department" value={draft.department} onChange={(event) => setField("department", event.target.value)} />
+          <Input aria-label="Location" placeholder="Location" value={draft.location} onChange={(event) => setField("location", event.target.value)} />
+          <Input aria-label="Employment type" placeholder="Employment type" value={draft.employment_type} onChange={(event) => setField("employment_type", event.target.value)} />
+          <Input aria-label="Role level" placeholder="Role level" value={draft.role_level} onChange={(event) => setField("role_level", event.target.value)} />
+          <select aria-label="Job status" className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={draft.status} onChange={(event) => setField("status", event.target.value)}>
             <option value="active">Active</option>
             <option value="draft">Draft</option>
             <option value="archived">Archived</option>
@@ -346,17 +347,17 @@ export default function JobsPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         {jobs.map((job) => (
-          <Card className="transition hover:-translate-y-0.5 hover:border-[#b9ddd5]" key={job.id}>
+          <Card className="transition-colors hover:border-[var(--line-strong)]" key={job.id}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-lg font-black">{job.title}</p>
                 <p className="mt-1 text-sm text-[#5f6f6b]">{job.department} | {job.role_level} | {job.status}</p>
               </div>
               <div className="flex gap-2">
-                <button className="focus-ring rounded-lg border border-line p-2 text-moss hover:bg-paper" onClick={() => loadJobForEdit(job)} title="Edit job">
+                <button aria-label={`Edit ${job.title}`} className="focus-ring rounded-lg border border-line p-2 text-moss hover:bg-paper" onClick={() => loadJobForEdit(job)} title="Edit job">
                   <Pencil size={16} />
                 </button>
-                <button className="focus-ring rounded-lg border border-line p-2 text-coral hover:bg-[#fff1ee]" onClick={() => deleteJob(job)} title="Delete job">
+                <button aria-label={`Delete ${job.title}`} className="focus-ring rounded-lg border border-line p-2 text-coral hover:bg-[#fff1ee]" onClick={() => deleteJob(job)} title="Delete job">
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -365,6 +366,7 @@ export default function JobsPage() {
           </Card>
         ))}
       </section>
+      {!jobs.length && <Card className="text-center"><BriefcaseBusiness className="mx-auto text-moss" size={25} /><p className="mt-3 text-sm font-semibold">No job profiles yet</p><p className="mt-1 text-sm text-[var(--muted)]">Create your first profile above to define how candidates are evaluated.</p></Card>}
     </div>
   );
 }
