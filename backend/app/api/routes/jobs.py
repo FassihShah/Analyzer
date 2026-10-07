@@ -1,11 +1,13 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.api.deps import get_current_user
 from app.db.session import get_session
-from app.models.entities import JobProfile, JobRubric, User
+from app.models.entities import Applicant, ApplicantImport, CandidateEmail, EvaluationRun, JobProfile, JobRubric, User
 from app.schemas.contracts import JobProfileDraftRequest, JobProfileDraftSchema, JobProfilePayload
 from app.services.llm_client import DeepSeekClient
 
@@ -221,9 +223,29 @@ def delete_job(job_id: UUID, session: Session = Depends(get_session), _: User = 
     job = session.get(JobProfile, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    blockers = {
+        "imports": ApplicantImport,
+        "applicants": Applicant,
+        "evaluation runs": EvaluationRun,
+        "candidate emails": CandidateEmail,
+    }
+    in_use = []
+    for label, model in blockers.items():
+        count = session.exec(select(func.count()).select_from(model).where(model.job_id == job.id)).one()
+        if count:
+            in_use.append(f"{count} {label}")
+    if in_use:
+        raise HTTPException(
+            status_code=409,
+            detail=f"This job is still in use ({', '.join(in_use)}). Delete its imports first, then delete the job.",
+        )
     rubrics = session.exec(select(JobRubric).where(JobRubric.job_id == job.id)).all()
     for rubric in rubrics:
         session.delete(rubric)
     session.delete(job)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="This job is still referenced by other records and cannot be deleted.")
     return {"deleted": True}
