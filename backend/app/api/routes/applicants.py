@@ -65,6 +65,53 @@ def _job_analysis_summaries(session: Session, applicant_id: UUID) -> list[dict]:
     return summaries
 
 
+def _bulk_job_analyses(session: Session, applicants: list[Applicant]) -> dict[UUID, list[dict]]:
+    """Same output as _job_analysis_summaries for many applicants, in 3 queries instead of several per applicant."""
+    if not applicants:
+        return {}
+    by_id = {applicant.id: applicant for applicant in applicants}
+    jobs = {job.id: job for job in session.exec(select(JobProfile)).all()}
+    runs = session.exec(
+        select(EvaluationRun).where(EvaluationRun.applicant_id.in_(list(by_id))).order_by(EvaluationRun.started_at.desc())
+    ).all()
+    latest: dict[UUID, dict[UUID, EvaluationRun]] = {}
+    for run in runs:
+        latest.setdefault(run.applicant_id, {}).setdefault(run.job_id, run)
+    run_ids = [run.id for per_job in latest.values() for run in per_job.values()]
+    finals: dict[UUID, FinalEvaluation] = {}
+    if run_ids:
+        for final in session.exec(
+            select(FinalEvaluation).where(FinalEvaluation.run_id.in_(run_ids)).order_by(FinalEvaluation.created_at.desc())
+        ).all():
+            finals.setdefault(final.run_id, final)
+
+    result: dict[UUID, list[dict]] = {}
+    for applicant_id, per_job in latest.items():
+        summaries = []
+        for job_id, run in per_job.items():
+            job = jobs.get(job_id)
+            final = finals.get(run.id)
+            matches_role, role_reason = applicant_matches_job(by_id[applicant_id], job) if job else (False, "Applicant or job record was not found.")
+            summaries.append(
+                {
+                    "job_id": job_id,
+                    "job_title": job.title if job else "Unknown job",
+                    "run_id": run.id,
+                    "status": run.status.value,
+                    "reason": run.reason,
+                    "started_at": run.started_at,
+                    "completed_at": run.completed_at,
+                    "final_score": final.final_score if final else None,
+                    "decision": final.decision.value if final else None,
+                    "summary": final.summary if final else "",
+                    "matches_applied_role": matches_role,
+                    "role_match_reason": role_reason,
+                }
+            )
+        result[applicant_id] = summaries
+    return result
+
+
 @router.get("")
 def list_applicants(
     job_id: UUID | None = None,
@@ -73,10 +120,12 @@ def list_applicants(
     _: User = Depends(get_current_user),
 ):
     applicants = session.exec(select(Applicant).order_by(Applicant.updated_at.desc())).all()
+    analyses_by_applicant = _bulk_job_analyses(session, applicants)
+    jobs_by_id = {job.id: job for job in session.exec(select(JobProfile)).all()}
     enriched = []
     for applicant in applicants:
-        analyses = _job_analysis_summaries(session, applicant.id)
-        job = session.get(JobProfile, applicant.job_id)
+        analyses = analyses_by_applicant.get(applicant.id, [])
+        job = jobs_by_id.get(applicant.job_id)
         selected_analysis = next((analysis for analysis in analyses if str(analysis["job_id"]) == str(job_id)), None) if job_id else None
         if job_id and not selected_analysis and applicant.job_id != job_id:
             continue

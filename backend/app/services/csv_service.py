@@ -92,6 +92,7 @@ CANONICAL_FIELD_ALIASES = {
         "linkedin url",
         "linkedin profile",
         "linkedin link",
+        "linkedin upwork",
         "profile url",
     ),
     "employment_status": (

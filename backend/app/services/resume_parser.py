@@ -42,10 +42,13 @@ def extract_text_from_bytes(content: bytes, file_name: str | None, mime_type: st
     diagnostics: dict[str, Any] = {"parser": None, "fallback_used": False}
     normalized_mime = (mime_type or "").lower()
     if "pdf" in normalized_mime or suffix == ".pdf" or content.startswith(b"%PDF"):
-        return _extract_pdf(content, diagnostics)
-    if "word" in normalized_mime or "officedocument" in normalized_mime or suffix == ".docx" or content.startswith(b"PK\x03\x04"):
-        return _extract_docx(content, diagnostics)
-    raise ResumeParsingError(f"Unsupported resume type: {mime_type or suffix or 'unknown'}")
+        text, diagnostics = _extract_pdf(content, diagnostics)
+    elif "word" in normalized_mime or "officedocument" in normalized_mime or suffix == ".docx" or content.startswith(b"PK\x03\x04"):
+        text, diagnostics = _extract_docx(content, diagnostics)
+    else:
+        raise ResumeParsingError(f"Unsupported resume type: {mime_type or suffix or 'unknown'}")
+    # Some PDFs yield NUL bytes, which PostgreSQL text/JSON columns reject.
+    return text.replace("\x00", ""), diagnostics
 
 
 def _extract_pdf(content: bytes, diagnostics: dict[str, Any]) -> tuple[str, dict[str, Any]]:

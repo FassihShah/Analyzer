@@ -286,6 +286,8 @@ class CandidateProfileSchema(BaseModel):
     possible_seniority_indicators: list[str] = Field(default_factory=list)
     possible_ownership_indicators: list[str] = Field(default_factory=list)
     project_evidence_snippets: list[str] = Field(default_factory=list)
+    links: list[str] = Field(default_factory=list)
+    cover_letter_summary: str = ""
     ambiguity_flags: list[str] = Field(default_factory=list)
     confidence: float = Field(default=0.5, ge=0, le=1)
 
@@ -321,7 +323,7 @@ class CandidateProfileSchema(BaseModel):
                 normalized[target] = normalized[source]
         return normalized
 
-    @field_validator("skills", "tools_platforms", "inferred_domains", "certifications", "achievements", "possible_seniority_indicators", "possible_ownership_indicators", "project_evidence_snippets", "ambiguity_flags", mode="before")
+    @field_validator("skills", "tools_platforms", "inferred_domains", "certifications", "achievements", "possible_seniority_indicators", "possible_ownership_indicators", "project_evidence_snippets", "links", "ambiguity_flags", mode="before")
     @classmethod
     def coerce_text_lists(cls, value: Any) -> list[str]:
         return _coerce_text_list(value)
@@ -359,6 +361,8 @@ class FinalSynthesisSchema(BaseModel):
             "decision": "final_candidate_decision",
             "summary": "candidate_fit_summary",
             "fit_summary": "candidate_fit_summary",
+            "recruiter_summary": "candidate_fit_summary",
+            "best_project": "best_project_relevance",
             "strengths": "top_strengths",
             "gaps": "top_gaps",
         }

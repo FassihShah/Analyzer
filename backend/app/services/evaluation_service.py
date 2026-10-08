@@ -112,6 +112,29 @@ Candidate profile:
 """
 
 
+PROFILE_REVISION = 2
+
+CONTEXT_KEY_HINTS = ("linkedin", "github", "portfolio", "upwork", "cover", "proposal", "custom_field")
+
+
+def _application_context(applicant: Applicant) -> str:
+    """Candidate-supplied form data (links, cover letter) that is not part of the resume text."""
+    lines: list[str] = []
+    seen: set[str] = set()
+    for key, value in (applicant.original_data or {}).items():
+        if key.startswith("_") or not isinstance(value, str) or not value.strip():
+            continue
+        normalized_key = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+        if not any(hint in normalized_key for hint in CONTEXT_KEY_HINTS):
+            continue
+        text = value.strip()
+        if text in seen:
+            continue
+        seen.add(text)
+        lines.append(f"{key}: {text[:1500]}")
+    return "\n".join(lines)
+
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -226,6 +249,20 @@ def _fallback_candidate_profile_from_text(text: str, applicant: Applicant) -> Ca
         "React",
         "FastAPI",
         "Docker",
+        "JavaScript",
+        "TypeScript",
+        "Tailwind",
+        "Redux",
+        "Next.js",
+        "Git",
+        "GitHub",
+        "JWT",
+        "Django",
+        "Flask",
+        "HTML",
+        "CSS",
+        "PostgreSQL",
+        "AWS",
     ]
     lowered = text.lower()
     skills = [skill for skill in skill_terms if skill.lower() in lowered]
@@ -302,6 +339,8 @@ async def evaluate_applicant(session: Session, applicant_id: UUID, job_id: UUID 
         session.commit()
         return run
     except Exception as exc:
+        # A failed flush leaves the session unusable until rolled back; without this the failure can't be recorded.
+        session.rollback()
         is_missing_resume = isinstance(exc, ResumeParsingError) and "Missing resume_storage_link" in str(exc)
         run.status = EvaluationStatus.missing_resume if is_missing_resume else EvaluationStatus.failed
         run.reason = str(exc)
@@ -353,7 +392,13 @@ async def _ensure_candidate_profile(
     rubrics: list[JobRubric],
 ) -> CandidateProfile:
     existing = session.exec(select(CandidateProfile).where(CandidateProfile.applicant_id == applicant.id)).first()
-    if existing and _candidate_profile_has_evidence(existing.profile_json or {}):
+    # Profiles from parser fallback, or built before PROFILE_REVISION, are rebuilt so they pick up the fixes.
+    if (
+        existing
+        and existing.model_name != "parser-fallback"
+        and (existing.profile_json or {}).get("_revision") == PROFILE_REVISION
+        and _candidate_profile_has_evidence(existing.profile_json or {})
+    ):
         return existing
     if existing:
         session.delete(existing)
@@ -370,6 +415,13 @@ async def _ensure_candidate_profile(
         parsed_sections=resume.parsed_sections,
         job=_format_job(job, rubrics),
     )
+    application_context = _application_context(applicant)
+    if application_context:
+        prompt += (
+            "\n\nApplication form data supplied by the candidate (links are listed but not opened). "
+            "Copy the profile and portfolio links into `links`, and summarise the cover letter in `cover_letter_summary`. "
+            "Do not report a missing GitHub/LinkedIn/portfolio link when one appears here:\n" + application_context
+        )
     model_name = version.model_name
     try:
         result, meta = await DeepSeekClient().json_completion(
@@ -387,7 +439,7 @@ async def _ensure_candidate_profile(
     profile = CandidateProfile(
         applicant_id=applicant.id,
         resume_id=resume.id,
-        profile_json=result.model_dump(),
+        profile_json={**result.model_dump(), "_revision": PROFILE_REVISION},
         prompt_version_id=version.id,
         model_name=model_name,
         confidence=result.confidence,
@@ -453,6 +505,7 @@ async def _run_dimensions_batched(
         model=version.model_name if version else None,
         temperature=version.temperature if version else 0.1,
         max_tokens=max(version.max_tokens if version else 2000, 7000),
+        schema_hint=False,  # BATCH_DIMENSION_TASK already spells out its shape
     )
     by_dimension = {item.dimension: item for item in result.results}
     stored: list[EvaluationDimensionResult] = []

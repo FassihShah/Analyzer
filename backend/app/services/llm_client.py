@@ -14,6 +14,19 @@ class LLMError(RuntimeError):
     pass
 
 
+def _type_label(annotation: Any) -> str:
+    return str(annotation).replace("typing.", "").replace("<class '", "").replace("'>", "")
+
+
+def _schema_hint(schema: type[BaseModel]) -> str:
+    """List the exact keys the response must use. Prompts that omit them get guessed key names, and pydantic then drops the data."""
+    fields = {name: _type_label(field.annotation) for name, field in schema.model_fields.items()}
+    return (
+        "\n\nReturn one JSON object using exactly these keys and types. Do not rename, nest or omit keys; "
+        "use \"\", [] or null when a value is unknown:\n" + json.dumps(fields, indent=2)
+    )
+
+
 class DeepSeekClient:
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -33,9 +46,12 @@ class DeepSeekClient:
         model: str | None = None,
         temperature: float = 0.1,
         max_tokens: int = 2000,
+        schema_hint: bool = True,
     ) -> tuple[T, dict[str, Any]]:
         if not self.settings.deepseek_api_key:
             raise LLMError("DEEPSEEK_API_KEY is not configured")
+        if schema_hint:
+            user_prompt += _schema_hint(schema)
 
         payload = {
             "model": model or self.settings.default_deepseek_model,
