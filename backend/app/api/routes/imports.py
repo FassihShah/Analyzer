@@ -51,7 +51,10 @@ async def upload_import(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     data = await file.read()
-    record, applicant_ids = import_applicant_csv(session, data=data, file_name=file.filename or "applicants.csv", job_id=job_id)
+    try:
+        record, applicant_ids = import_applicant_csv(session, data=data, file_name=file.filename or "applicants.csv", job_id=job_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     queued_ids = []
     skipped = []
     for applicant_id in applicant_ids:

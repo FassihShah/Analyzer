@@ -269,8 +269,21 @@ def _upsert_resume(session: Session, applicant: Applicant, original: dict[str, A
     )
 
 
+def _read_csv_bytes(data: bytes) -> pd.DataFrame:
+    """Read an uploaded CSV. Excel/Word exports are often Windows-1252 rather than UTF-8 (e.g. curly quotes are byte 0x92)."""
+    last_error: Exception | None = None
+    for encoding in ("utf-8-sig", "cp1252", "latin-1"):
+        try:
+            return pd.read_csv(BytesIO(data), dtype=str, encoding=encoding)
+        except UnicodeDecodeError as exc:
+            last_error = exc
+        except (pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
+            raise ValueError(f"Could not read this CSV file: {exc}") from exc
+    raise ValueError(f"Could not decode this CSV file: {last_error}")
+
+
 def import_applicant_csv(session: Session, *, data: bytes, file_name: str, job_id: UUID) -> tuple[ApplicantImport, list[UUID]]:
-    df = pd.read_csv(BytesIO(data), dtype=str).where(pd.notnull, None)
+    df = _read_csv_bytes(data).where(pd.notnull, None)
     job = session.get(JobProfile, job_id)
     lookup = _column_lookup([str(column) for column in df.columns])
     import_record = ApplicantImport(job_id=job_id, file_name=file_name, row_count=len(df), status="imported")
