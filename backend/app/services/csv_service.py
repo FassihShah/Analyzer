@@ -345,8 +345,19 @@ def import_applicant_csv(session: Session, *, data: bytes, file_name: str, job_i
     return import_record, applicant_ids
 
 
-def build_export_csv(session: Session, *, job_id: UUID, decision: str | None = None) -> str:
-    query = select(Applicant).where(Applicant.job_id == job_id)
+def build_export_csv(
+    session: Session,
+    *,
+    job_id: UUID | None = None,
+    decision: str | None = None,
+    applicant_ids: list[UUID] | None = None,
+) -> str:
+    """Export a job's applicants, or only the given applicants (which may belong to different jobs)."""
+    query = select(Applicant)
+    if job_id:
+        query = query.where(Applicant.job_id == job_id)
+    if applicant_ids is not None:
+        query = query.where(Applicant.id.in_(applicant_ids))
     applicants = session.exec(query).all()
 
     def score_of(applicant: Applicant) -> float:
