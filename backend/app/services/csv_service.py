@@ -348,6 +348,15 @@ def import_applicant_csv(session: Session, *, data: bytes, file_name: str, job_i
 def build_export_csv(session: Session, *, job_id: UUID, decision: str | None = None) -> str:
     query = select(Applicant).where(Applicant.job_id == job_id)
     applicants = session.exec(query).all()
+
+    def score_of(applicant: Applicant) -> float:
+        try:
+            return float((applicant.system_outputs or {}).get("final_candidate_score"))
+        except (TypeError, ValueError):
+            return float("-inf")
+
+    applicants = sorted(applicants, key=score_of, reverse=True)  # highest score first, unscored last
+    import_names = {record.id: record.file_name for record in session.exec(select(ApplicantImport)).all()}
     rows: list[dict[str, Any]] = []
     dynamic_input_columns = list(CSV_INPUT_COLUMNS)
     for applicant in applicants:
@@ -360,6 +369,7 @@ def build_export_csv(session: Session, *, job_id: UUID, decision: str | None = N
                 continue
             dynamic_input_columns.append(column)
         row = {column: original_data.get(column) for column in dynamic_input_columns}
+        row["source_csv"] = import_names.get(applicant.import_id) if applicant.import_id else None
         for column in CSV_OUTPUT_COLUMNS:
             value = outputs.get(column)
             if isinstance(value, list):
@@ -367,5 +377,5 @@ def build_export_csv(session: Session, *, job_id: UUID, decision: str | None = N
             row[column] = value
         rows.append(row)
     buffer = StringIO()
-    pd.DataFrame(rows, columns=dynamic_input_columns + CSV_OUTPUT_COLUMNS).to_csv(buffer, index=False)
+    pd.DataFrame(rows, columns=dynamic_input_columns + ["source_csv"] + CSV_OUTPUT_COLUMNS).to_csv(buffer, index=False)
     return buffer.getvalue()

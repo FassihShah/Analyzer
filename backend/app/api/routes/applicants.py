@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 
 from app.api.deps import get_current_user
 from app.db.session import get_session
-from app.models.entities import Applicant, CandidateProfile, EvaluationDimensionResult, EvaluationRun, FinalEvaluation, JobProfile, Resume, User
+from app.models.entities import Applicant, ApplicantImport, CandidateProfile, EvaluationDimensionResult, EvaluationRun, FinalEvaluation, JobProfile, Resume, User
 from app.services.deletion_service import clear_applicant_analysis, clear_applicant_job_analysis, delete_applicant_tree
 from app.services.role_matching import applicant_matches_job
 from app.workers.tasks import evaluate_applicant_task
@@ -122,6 +122,7 @@ def list_applicants(
     applicants = session.exec(select(Applicant).order_by(Applicant.updated_at.desc())).all()
     analyses_by_applicant = _bulk_job_analyses(session, applicants)
     jobs_by_id = {job.id: job for job in session.exec(select(JobProfile)).all()}
+    import_names = {record.id: record.file_name for record in session.exec(select(ApplicantImport)).all()}
     enriched = []
     for applicant in applicants:
         analyses = analyses_by_applicant.get(applicant.id, [])
@@ -131,6 +132,7 @@ def list_applicants(
             continue
         data = applicant.model_dump()
         data["job_title"] = job.title if job else ""
+        data["import_file_name"] = import_names.get(applicant.import_id) if applicant.import_id else None
         data["job_analyses"] = analyses
         if selected_analysis:
             data["selected_job_analysis"] = selected_analysis
