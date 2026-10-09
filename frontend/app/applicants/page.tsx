@@ -2,16 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Mail, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, FileDown, Mail, Search, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
-import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, exportSelectedUrl, exportUrl, getToken } from "@/lib/api";
 import type { Applicant, JobProfile } from "@/types/domain";
+
+function scoreOf(applicant: Applicant): number | null {
+  const raw = applicant.selected_job_analysis?.final_score ?? applicant.system_outputs?.final_candidate_score;
+  const value = typeof raw === "number" ? raw : Number.parseFloat(String(raw ?? ""));
+  return Number.isFinite(value) ? value : null;
+}
 
 export default function ApplicantsPage() {
   const [applicants, setApplicants] = useState<Applicant[]>([]);
@@ -21,6 +26,9 @@ export default function ApplicantsPage() {
   const [emailJobId, setEmailJobId] = useState("");
   const [decision, setDecision] = useState("");
   const [status, setStatus] = useState("");
+  const [importFile, setImportFile] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [exportJobId, setExportJobId] = useState("");
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
@@ -39,20 +47,36 @@ export default function ApplicantsPage() {
       setJobs(data);
       setAnalysisJobId(data[0]?.id ?? "");
       setEmailJobId(data[0]?.id ?? "");
+      setExportJobId(data[0]?.id ?? "");
     }).catch(() => setJobs([]));
   }, []);
 
+  const importFiles = useMemo(
+    () => Array.from(new Set(applicants.map((applicant) => applicant.import_file_name).filter((name): name is string => Boolean(name)))).sort(),
+    [applicants]
+  );
+
   const filtered = useMemo(() => {
-    return applicants.filter((applicant) => {
+    const matching = applicants.filter((applicant) => {
       const output = applicant.system_outputs || {};
       const analysis = applicant.selected_job_analysis;
       const matchesJob = !jobId || applicant.job_id === jobId || applicant.job_analyses?.some((item) => item.job_id === jobId);
       const matchesDecision = !decision || analysis?.decision === decision || output.final_candidate_decision === decision;
       const matchesStatus = !status || applicant.processing_status === status;
+      const matchesImport = !importFile || applicant.import_file_name === importFile;
       const haystack = `${applicant.candidate_name} ${applicant.candidate_email} ${output.top_strengths}`.toLowerCase();
-      return matchesJob && matchesDecision && matchesStatus && haystack.includes(query.toLowerCase());
+      return matchesJob && matchesDecision && matchesStatus && matchesImport && haystack.includes(query.toLowerCase());
     });
-  }, [applicants, decision, jobId, query, status]);
+    // Highest score first by default; unscored applicants always sort last.
+    return matching.sort((a, b) => {
+      const scoreA = scoreOf(a);
+      const scoreB = scoreOf(b);
+      if (scoreA === null && scoreB === null) return 0;
+      if (scoreA === null) return 1;
+      if (scoreB === null) return -1;
+      return sortDir === "desc" ? scoreB - scoreA : scoreA - scoreB;
+    });
+  }, [applicants, decision, importFile, jobId, query, sortDir, status]);
 
   const filteredIds = useMemo(() => filtered.map((applicant) => applicant.id), [filtered]);
   const selectedVisibleCount = useMemo(() => filteredIds.filter((id) => selectedIds.includes(id)).length, [filteredIds, selectedIds]);
@@ -153,6 +177,46 @@ export default function ApplicantsPage() {
     }
   }
 
+  async function downloadCsv(request: () => Promise<Response>, fileName: string) {
+    setError("");
+    setMessage("");
+    try {
+      const response = await request();
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { detail?: string };
+        throw new Error(body.detail ?? `Export failed: ${response.status}`);
+      }
+      const url = window.URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName;
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not export CSV.");
+    }
+  }
+
+  function exportAll() {
+    if (!exportJobId) return;
+    return downloadCsv(
+      () => fetch(exportUrl(exportJobId, decision || undefined), { headers: { Authorization: `Bearer ${getToken()}` } }),
+      `${decision || "all"}-enriched-applicants.csv`
+    );
+  }
+
+  function exportSelected() {
+    if (!selectedIds.length) return;
+    return downloadCsv(
+      () => fetch(exportSelectedUrl(), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ applicant_ids: selectedIds })
+      }),
+      "selected-enriched-applicants.csv"
+    );
+  }
+
   function toggleSelected(id: string) {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
@@ -178,7 +242,7 @@ export default function ApplicantsPage() {
         </div>
       )}
       <Card className="overflow-hidden p-0">
-        <div className="grid grid-cols-2 gap-4 border-b border-line bg-paper/80 p-4 xl:grid-cols-4">
+        <div className="grid gap-4 border-b border-line bg-paper/80 p-4 sm:grid-cols-2 xl:grid-cols-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">Filtered applicants</p>
             <p className="mt-1 text-2xl font-black text-moss">{filtered.length}</p>
@@ -196,7 +260,7 @@ export default function ApplicantsPage() {
             <p className="mt-1 text-2xl font-black text-coral">{(filteredStatusCounts.failed ?? 0) + (filteredStatusCounts.missing_resume ?? 0)}</p>
           </div>
         </div>
-        <div className="grid gap-3 border-b border-line p-4 xl:grid-cols-[1fr_170px_170px_170px_auto]">
+        <div className="grid gap-3 border-b border-line p-4 xl:grid-cols-[1fr_170px_170px_170px_170px_auto]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7a8a86]" size={18} />
             <Input className="pl-10" placeholder="Filter by name, email, skill, or strength" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -219,6 +283,10 @@ export default function ApplicantsPage() {
             <option value="failed">Failed</option>
             <option value="missing_resume">Missing resume</option>
           </select>
+          <select className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={importFile} onChange={(event) => setImportFile(event.target.value)}>
+            <option value="">All source CSVs</option>
+            {importFiles.map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
           <div className="flex gap-2">
             <Button className="bg-[#4d5752]" onClick={reprocessSelected} disabled={!selectedIds.length}>Re-run ({selectedIds.length})</Button>
             <Button className="bg-coral hover:bg-[#a84436]" onClick={deleteSelected} disabled={!selectedIds.length}>Delete ({selectedIds.length})</Button>
@@ -237,6 +305,25 @@ export default function ApplicantsPage() {
         </div>
         <div className="flex flex-col gap-3 border-b border-line p-4 md:flex-row md:items-center md:justify-between">
           <div>
+            <p className="text-sm font-black text-ink">Export CSV</p>
+            <p className="mt-1 text-sm text-[#5f6f6b]">Sorted by score. &quot;Export all&quot; covers every applicant for the chosen job and uses the decision filter above{decision ? ` (${decision})` : " (all decisions)"}. &quot;Export selected&quot; covers only the ticked rows.</p>
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <select className="focus-ring min-h-10 rounded-md border border-line bg-white px-3 text-sm" value={exportJobId} onChange={(event) => setExportJobId(event.target.value)}>
+              {jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
+            </select>
+            <Button className="bg-moss" onClick={exportAll} disabled={!exportJobId}>
+              <FileDown size={16} />
+              Export all
+            </Button>
+            <Button className="bg-[#4d5752] hover:bg-[#3c4541]" onClick={exportSelected} disabled={!selectedIds.length}>
+              <FileDown size={16} />
+              Export selected ({selectedIds.length})
+            </Button>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 border-b border-line p-4 md:flex-row md:items-center md:justify-between">
+          <div>
             <p className="text-sm font-black text-ink">Rejection email drafts</p>
             <p className="mt-1 text-sm text-[#5f6f6b]">Draft only for selected candidates who already have a completed reject decision for the chosen job.</p>
           </div>
@@ -251,7 +338,7 @@ export default function ApplicantsPage() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
             <thead className="bg-paper">
               <tr className="border-b border-line text-xs font-bold uppercase tracking-normal text-[#5f6f6b]">
                 <th className="px-5 py-3">
@@ -259,7 +346,12 @@ export default function ApplicantsPage() {
                 </th>
                 <th className="px-4 py-3">Candidate</th>
                 <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Score</th>
+                <th className="px-4 py-3">Source CSV</th>
+                <th className="px-4 py-3" aria-sort={sortDir === "desc" ? "descending" : "ascending"}>
+                  <button type="button" className="focus-ring inline-flex items-center gap-1 font-bold uppercase" onClick={() => setSortDir((current) => (current === "desc" ? "asc" : "desc"))} title="Sort by score">
+                    Score {sortDir === "desc" ? <ArrowDown size={13} /> : <ArrowUp size={13} />}
+                  </button>
+                </th>
                 <th className="px-4 py-3">Decision</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Best project</th>
@@ -281,6 +373,7 @@ export default function ApplicantsPage() {
                       <p className="mt-1 text-xs text-[#5f6f6b]">{applicant.candidate_email}</p>
                     </td>
                     <td className="px-4 py-4">{applicant.applied_role}</td>
+                    <td className="max-w-48 break-words px-4 py-4 text-xs text-[#4f5f5b]">{applicant.import_file_name ?? "-"}</td>
                     <td className="px-4 py-4">
                       <p className="font-bold">{analysis?.final_score ?? output.final_candidate_score ?? "-"}</p>
                       <p className="mt-1 text-xs text-[#5f6f6b]">{analysis?.job_title ?? applicant.job_title}</p>
@@ -300,7 +393,6 @@ export default function ApplicantsPage() {
                   </tr>
                 );
               })}
-              {!filtered.length && <tr><td colSpan={9} className="px-5"><EmptyState title="No applicants match these filters" description="Try another search or clear the filters to see more candidates." action={<button type="button" className="focus-ring text-sm font-semibold text-moss hover:underline" onClick={() => { setQuery(""); setDecision(""); setJobId(""); setStatus(""); }}>Clear filters</button>} /></td></tr>}
             </tbody>
           </table>
         </div>

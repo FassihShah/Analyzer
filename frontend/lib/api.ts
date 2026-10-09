@@ -1,6 +1,3 @@
-import { demoFetch } from "@/lib/demo";
-
-export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true" || !process.env.NEXT_PUBLIC_API_BASE_URL;
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";
 
 export type ApiError = { detail?: string };
@@ -26,7 +23,6 @@ function redirectToLogin() {
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (DEMO_MODE) return demoFetch<T>(path, init);
   const headers = new Headers(init.headers);
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -47,6 +43,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     throw new Error(body.detail ?? `Request failed: ${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+export function exportSelectedUrl() {
+  return `${API_BASE}/exports/csv/selected`;
 }
 
 export function exportUrl(jobId: string, decision?: string) {

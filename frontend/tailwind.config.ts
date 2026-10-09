@@ -5,16 +5,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "var(--ink)",
-        moss: "var(--accent)",
-        coral: "var(--danger)",
-        paper: "var(--canvas)",
-        line: "var(--line)"
+        ink: "#181c1f",
+        moss: "#147a6c",
+        coral: "#d85c46",
+        paper: "#f7faf9",
+        line: "#d7e1df"
       },
       borderRadius: {
-        sm: "6px",
-        md: "8px",
-        lg: "12px"
+        sm: "4px",
+        md: "6px",
+        lg: "8px"
       }
     }
   },

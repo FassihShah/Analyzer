@@ -5,8 +5,8 @@ import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Hirer | Recruitment Workspace",
-  description: "Review applicants, manage job profiles, and coordinate evidence-led candidate evaluation."
+  title: "AI Resume Filtering",
+  description: "Multi-pass LLM candidate evaluation dashboard"
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
